@@ -164,6 +164,16 @@ PALDACA_PORTAL_URL = (
 
 PALDACA_SHELL_PATH = os.getenv("PALDACA_SHELL_PATH", "/codigos")
 
+# Bus de notificaciones del Portal: llamada server-to-server firmada
+# (documentos/notificaciones_portal.py). Mismos valores por defecto que el nav.
+PALDACA_PORTAL_API_URL = (
+    (os.getenv("PALDACA_PORTAL_API_URL") or "").strip().rstrip("/")
+    or ("http://127.0.0.1:8000/api" if DEBUG else "https://api.cpaldaca.com/api")
+)
+PALDACA_NOTIFICACIONES_ACTIVAS = (
+    os.getenv("PALDACA_NOTIFICACIONES_ACTIVAS", "true").lower() == "true"
+)
+
 _frame_ancestors = ["'self'", PALDACA_PORTAL_URL]
 if DEBUG:
     _frame_ancestors += ["http://localhost:5173", "http://127.0.0.1:5173"]

@@ -14,6 +14,9 @@ PASSWORD_HASHERS = [
 
 MIDDLEWARE = [mw for mw in MIDDLEWARE if "whitenoise" not in mw]
 
+# Ningun test sale a la red: los que prueban la emision la simulan.
+PALDACA_NOTIFICACIONES_ACTIVAS = False
+
 STORAGES = {
     "default": {
         "BACKEND": "django.core.files.storage.FileSystemStorage",

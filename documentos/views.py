@@ -13,6 +13,7 @@ from django.urls import reverse
 from django.utils.encoding import force_str
 from django.utils.timezone import localtime, now
 
+from .avisos import avisar_solicitud_anulacion
 from .decorators import requiere_modulo_paldaca
 from .forms import BusquedaCodigoForm, CodigoForm
 from .models import CodigoGenerado, SolicitudAnulacion
@@ -436,13 +437,14 @@ def solicitar_anulacion(request, codigo_id):
                 return JsonResponse({'success': False, 'error': 'Ya solicitaste la anulación'}, status=400)
 
             # Crear la solicitud
-            SolicitudAnulacion.objects.create(
+            solicitud = SolicitudAnulacion.objects.create(
                 codigo=codigo,
                 solicitante=request.user,
                 motivo=motivo,
                 fecha_solicitud=now()
             )
             logger.info("Solicitud anulacion creada usuario=%s codigo_id=%s", request.user.username, codigo_id)
+            avisar_solicitud_anulacion(solicitud)
 
             return JsonResponse({'success': True})
 

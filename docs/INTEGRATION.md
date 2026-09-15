@@ -145,7 +145,30 @@ El JS del Portal (`paldaca-nav.js`) se espera que consulte la API del Portal par
 
 Logout local redirige a `PALDACA_SSO_LOGOUT_URL` (API del backend Portal: `/api/auth/sso/logout/` por defecto).
 
-### 5.3 APIs REST propias
+### 5.3 Bus de notificaciones del Portal
+
+`documentos/notificaciones_portal.py` emite eventos a la campana del Portal con una
+llamada server-to-server **firmada** (HMAC-SHA256 con clave derivada de
+`DJANGO_SECRET_KEY`; misma función que `backend/notificaciones/firma.py` del Portal). No
+usa la sesión del operador: por eso sirve aunque quien solicita no sea administrador.
+Nunca lanza; se emite con `transaction.on_commit`.
+
+| Evento | Dónde | Destinatarios |
+|--------|-------|---------------|
+| `codigos.solicitud_anulacion` | `solicitar_anulacion` → `documentos/avisos.py` | Resuelve el Portal: admins del módulo + superadmins. Códigos suma en `payload.usuario_ids` a los titulares del permiso `documentos.puede_anular_codigo` (directo o por grupo) con acceso a `codigos`, que el Portal no ve |
+
+Juntos cubren la misma regla que `es_aprobador_codigos()`. Deep link a
+`/codigos/solicitudes_anulacion/` dentro del shell.
+
+Variables: `PALDACA_PORTAL_API_URL` (default `http://127.0.0.1:8000/api` con `DEBUG`,
+`https://api.cpaldaca.com/api` en producción) y `PALDACA_NOTIFICACIONES_ACTIVAS` (`false`
+la apaga; `codigos/settings_test.py` la apaga). Contrato completo en
+`Portal-Paldaca/docs/guia-integracion-programas-satelite.md`.
+
+Esto es la API del bus del Portal, no una API entre satélites: la regla "no inventar APIs
+REST entre módulos" sigue en pie.
+
+### 5.4 APIs REST propias
 
 **No hay** un API REST documentada (DRF u similar) en este repositorio.
 

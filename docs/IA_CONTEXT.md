@@ -96,7 +96,7 @@ Detalle: `BUSINESS_RULES.md`.
 
 | Repo | Relación |
 |---|---|
-| Portal-Paldaca | SSO, logout API, nav CSS/JS/API, secretos compartidos |
+| Portal-Paldaca | SSO, logout API, nav CSS/JS/API, secretos compartidos, bus de notificaciones (POST firmado al solicitar anulación — `documentos/avisos.py`) |
 | Activos / Calidad / HDT | Misma BD + `core_*` + sesión; **sin API directa** con Códigos |
 | Calidad | Modelos espejo `calidad_*` en migraciones de este repo |
 | HDT | Columnas timesheet en `core_usuario` |
