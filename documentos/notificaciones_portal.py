@@ -1,6 +1,7 @@
 """Emite eventos al bus de notificaciones de Portal-Paldaca.
 
-Llamada server-to-server firmada con un HMAC derivado de DJANGO_SECRET_KEY
+Llamada server-to-server firmada con un HMAC (clave propia del modulo si hay
+PALDACA_NOTIF_SECRET; si no, derivada de DJANGO_SECRET_KEY, esquema legado)
 (misma funcion que backend/notificaciones/firma.py del Portal). No necesita la
 sesion de ningun usuario, asi que sirve igual desde una vista que desde un cron.
 
@@ -24,8 +25,17 @@ TIMEOUT_SEGUNDOS = 4
 _SAL = b"paldaca.notificaciones.v1:"
 
 
+def _secreto() -> str:
+    """Secreto PROPIO de este modulo (`PALDACA_NOTIF_SECRET`, >= 32 caracteres; con
+    varios separados por coma firma el primero) o, si no esta, el esquema legado
+    derivado de DJANGO_SECRET_KEY. El Portal aplica la misma regla de longitud, asi
+    que uno mas corto se ignora en los dos lados."""
+    propio = (getattr(settings, "PALDACA_NOTIF_SECRET", "") or "").split(",")[0].strip()
+    return propio if len(propio) >= 32 else settings.SECRET_KEY
+
+
 def firmar(cuerpo: bytes, cliente: str, timestamp: str) -> str:
-    clave = hashlib.sha256(_SAL + settings.SECRET_KEY.encode()).digest()
+    clave = hashlib.sha256(_SAL + _secreto().encode()).digest()
     mensaje = f"{timestamp}.{cliente}.".encode() + cuerpo
     return hmac.new(clave, mensaje, hashlib.sha256).hexdigest()
 

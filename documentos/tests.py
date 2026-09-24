@@ -24,6 +24,23 @@ class FirmaTests(TestCase):
             "3a9d0e031e7a715ce0336a9820b5f5afa39307eea7e5e78850b35b9b8f7b8a0d",
         )
 
+    @override_settings(SECRET_KEY="clave-de-prueba-paldaca", PALDACA_NOTIF_SECRET="s" * 40)
+    def test_vector_del_secreto_propio_compartido_con_el_portal(self):
+        # Mismo vector que backend/notificaciones/tests.py del Portal
+        # (FirmaPorModuloTests): el esquema con secreto propio debe coincidir byte a byte.
+        self.assertEqual(
+            notificaciones_portal.firmar(b'{"codigo": "x"}', "hdt", "1700000000"),
+            "f0304a6ca434986600f828fa81963d787b98d2a377a5848695dd13d250ee2c53",
+        )
+
+    @override_settings(SECRET_KEY="clave-de-prueba-paldaca", PALDACA_NOTIF_SECRET="corto")
+    def test_un_secreto_propio_demasiado_corto_se_ignora(self):
+        # El Portal tambien lo ignora: lo unico que valida es el esquema legado.
+        self.assertEqual(
+            notificaciones_portal.firmar(b'{"codigo": "x"}', "hdt", "1700000000"),
+            "3a9d0e031e7a715ce0336a9820b5f5afa39307eea7e5e78850b35b9b8f7b8a0d",
+        )
+
 
 class SolicitudAnulacionAvisoTests(TestCase):
     @classmethod
