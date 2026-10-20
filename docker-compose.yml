@@ -19,6 +19,11 @@ services:
       PALDACA_PORTAL_URL: ${PALDACA_PORTAL_URL:-https://cpaldaca.com}
       PALDACA_SHELL_PATH: ${PALDACA_SHELL_PATH:-/codigos}
       DJANGO_LOG_TO_STDOUT: "true"
+      EMAIL_HOST: ${EMAIL_HOST:-sunfire.mxrouting.net}
+      EMAIL_PORT: ${EMAIL_PORT:-465}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-notificaciones@cpaldaca.com}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-notificaciones@cpaldaca.com}
       PORT: "8084"
     volumes:
       - codigos_media:/app/media

@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import logging
 
+from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.mail import BadHeaderError, EmailMultiAlternatives
@@ -13,6 +14,7 @@ from django.urls import reverse
 from django.utils.encoding import force_str
 from django.utils.timezone import localtime, now
 
+from .avisos import avisar_solicitud_anulacion
 from .decorators import requiere_modulo_paldaca
 from .forms import BusquedaCodigoForm, CodigoForm
 from .models import CodigoGenerado, SolicitudAnulacion
@@ -279,7 +281,7 @@ def generar_codigo(request):
                 email = EmailMultiAlternatives(
                     asunto,
                     mensaje_texto,
-                    'admin@codigos.cpaldaca.com',
+                    settings.DEFAULT_FROM_EMAIL,
                     [destino],
                 )
                 email.encoding = 'utf-8'
@@ -436,13 +438,14 @@ def solicitar_anulacion(request, codigo_id):
                 return JsonResponse({'success': False, 'error': 'Ya solicitaste la anulación'}, status=400)
 
             # Crear la solicitud
-            SolicitudAnulacion.objects.create(
+            solicitud = SolicitudAnulacion.objects.create(
                 codigo=codigo,
                 solicitante=request.user,
                 motivo=motivo,
                 fecha_solicitud=now()
             )
             logger.info("Solicitud anulacion creada usuario=%s codigo_id=%s", request.user.username, codigo_id)
+            avisar_solicitud_anulacion(solicitud)
 
             return JsonResponse({'success': True})
 

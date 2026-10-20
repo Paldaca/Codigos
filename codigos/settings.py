@@ -164,6 +164,20 @@ PALDACA_PORTAL_URL = (
 
 PALDACA_SHELL_PATH = os.getenv("PALDACA_SHELL_PATH", "/codigos")
 
+# Bus de notificaciones del Portal: llamada server-to-server firmada
+# (documentos/notificaciones_portal.py). Mismos valores por defecto que el nav.
+PALDACA_PORTAL_API_URL = (
+    (os.getenv("PALDACA_PORTAL_API_URL") or "").strip().rstrip("/")
+    or ("http://127.0.0.1:8000/api" if DEBUG else "https://api.cpaldaca.com/api")
+)
+PALDACA_NOTIFICACIONES_ACTIVAS = (
+    os.getenv("PALDACA_NOTIFICACIONES_ACTIVAS", "true").lower() == "true"
+)
+# Secreto PROPIO de este modulo para firmar avisos al Portal (>= 32 caracteres).
+# Vacio = esquema legado (derivado de DJANGO_SECRET_KEY, que conocen los demas
+# repos). Debe coincidir con PALDACA_NOTIF_SECRET_CODIGOS del Portal.
+PALDACA_NOTIF_SECRET = os.getenv("PALDACA_NOTIF_SECRET", "")
+
 _frame_ancestors = ["'self'", PALDACA_PORTAL_URL]
 if DEBUG:
     _frame_ancestors += ["http://localhost:5173", "http://127.0.0.1:5173"]
@@ -263,18 +277,17 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# settings.py
-
+# Correo: buzon notificaciones@cpaldaca.com en MXRouting (MX de cpaldaca.com).
+# La contraseña sigue en correo.env (EMAIL_HOST_PASSWORD) o en el entorno.
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'codigos.cpaldaca.com'
-EMAIL_PORT = 465
-EMAIL_USE_SSL = True         # ✅ Usa SSL ya que el puerto es 465
-EMAIL_USE_TLS = False        # ❌ TLS debe estar desactivado si usas SSL
-EMAIL_HOST_USER = 'admin@codigos.cpaldaca.com'
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')  # Se carga desde correo.env
-DEFAULT_FROM_EMAIL = 'admin@codigos.cpaldaca.com'
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'sunfire.mxrouting.net')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '465'))
+EMAIL_USE_SSL = True
+EMAIL_USE_TLS = False
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'notificaciones@cpaldaca.com')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
 EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '8'))
-#print('PASS:', os.getenv('EMAIL_HOST_PASSWORD'))
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
