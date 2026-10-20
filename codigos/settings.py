@@ -277,18 +277,17 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# settings.py
-
+# Correo: buzon notificaciones@cpaldaca.com en MXRouting (MX de cpaldaca.com).
+# La contraseña sigue en correo.env (EMAIL_HOST_PASSWORD) o en el entorno.
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'codigos.cpaldaca.com'
-EMAIL_PORT = 465
-EMAIL_USE_SSL = True         # ✅ Usa SSL ya que el puerto es 465
-EMAIL_USE_TLS = False        # ❌ TLS debe estar desactivado si usas SSL
-EMAIL_HOST_USER = 'admin@codigos.cpaldaca.com'
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')  # Se carga desde correo.env
-DEFAULT_FROM_EMAIL = 'admin@codigos.cpaldaca.com'
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'sunfire.mxrouting.net')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '465'))
+EMAIL_USE_SSL = True
+EMAIL_USE_TLS = False
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'notificaciones@cpaldaca.com')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
 EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '8'))
-#print('PASS:', os.getenv('EMAIL_HOST_PASSWORD'))
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/

@@ -85,7 +85,7 @@ Detalle: `BUSINESS_RULES.md`.
 - Misma `DJANGO_SECRET_KEY` y cookie domain que Portal (`key.env`).
 - `PALDACA_SSO_LOGIN_URL` / `PALDACA_SSO_LOGOUT_URL`.
 - Assets/API Portal: `cpaldaca.com` / `api.cpaldaca.com` (o localhost:8000 / :5173 en DEBUG).
-- SMTP local del dominio Códigos (`correo.env` → `EMAIL_HOST_PASSWORD`).
+- SMTP MXRouting `sunfire.mxrouting.net:465`, remitente `notificaciones@cpaldaca.com` (`correo.env` → `EMAIL_HOST_PASSWORD`).
 - `requirements.txt`: Django 5.2.4, mysqlclient, PyMySQL, dotenv, widget-tweaks.
 
 **Inconsistencia:** `key.env.example` define `MYSQL_*`, pero `codigos/db.py` hardcodea credenciales y no las usa.

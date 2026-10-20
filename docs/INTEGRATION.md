@@ -212,7 +212,7 @@ Endpoints JSON internos (misma app, no pensados como contrato inter-módulo):
 | Servicio | Uso |
 |---|---|
 | MySQL compartido | Persistencia Suite |
-| SMTP `codigos.cpaldaca.com:465` SSL | Notificación de nuevo código (`admin@codigos.cpaldaca.com`) |
+| SMTP `sunfire.mxrouting.net:465` SSL | Notificación de nuevo código (`notificaciones@cpaldaca.com`) |
 | CDN Bootstrap / jQuery | UI |
 | Phusion Passenger | Reinicio vía `touch passenger_wsgi.py` en CI |
 | GitHub Actions + SSH | Deploy a Namecheap |
@@ -227,6 +227,7 @@ De `key.env.example` y `settings.py`:
 - **Ciclo de vida no configurado:** `SESSION_COOKIE_AGE`, `SESSION_EXPIRE_AT_BROWSER_CLOSE`, `SESSION_SAVE_EVERY_REQUEST` **ausentes** → defaults Django (2 semanas / no expira al cerrar). **Diverge del Portal (8 h / expire at close / sliding).**
 - `PALDACA_SSO_LOGIN_URL`, `PALDACA_SSO_LOGOUT_URL`
 - `PALDACA_STRICT_SESSION_CONSISTENCY`
+- `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `DEFAULT_FROM_EMAIL` (por defecto `sunfire.mxrouting.net:465` y `notificaciones@cpaldaca.com`)
 - `EMAIL_HOST_PASSWORD` (vía `correo.env`)
 - `MYSQL_*` aparecen en el ejemplo, **pero `codigos/db.py` activo no las lee** (inconsistencia).
 

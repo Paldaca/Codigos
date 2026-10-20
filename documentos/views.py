@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import logging
 
+from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.mail import BadHeaderError, EmailMultiAlternatives
@@ -280,7 +281,7 @@ def generar_codigo(request):
                 email = EmailMultiAlternatives(
                     asunto,
                     mensaje_texto,
-                    'admin@codigos.cpaldaca.com',
+                    settings.DEFAULT_FROM_EMAIL,
                     [destino],
                 )
                 email.encoding = 'utf-8'
