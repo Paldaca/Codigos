@@ -2,6 +2,9 @@
 
 ## Obligatorio antes de escribir código
 
+> **En la rama `Cereipo`** (migración a la suite Cereipo), lee primero
+> **`docs/CEREIPO.md`**: dice qué partes de estos documentos dejan de valer.
+
 1. Leer **`docs/IA_CONTEXT.md`**.
 2. Según la tarea, consultar:
    - `docs/ARCHITECTURE.md`
