@@ -18,3 +18,4 @@ frontend/dist/
 venv/
 env/
 .import_linter_cache/
+frontend/.vite/

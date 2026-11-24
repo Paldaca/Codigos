@@ -1,8 +1,9 @@
-import { Ban, HelpCircle, Home, ListChecks, PlusCircle, Settings, SlidersHorizontal } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Ban, HelpCircle, ListChecks, PlusCircle, Settings } from 'lucide-react'
 import { useIdentidad } from '../context/IdentidadContext'
 import type { RutaApp } from '../rutas'
+import { registroApi } from '../services/registro'
 import { Isotipo } from '../ui/Marca'
-import { InsigniaOrganizacion } from './InsigniaOrganizacion'
 
 type BarraModuloProps = {
   vista: RutaApp
@@ -11,42 +12,80 @@ type BarraModuloProps = {
 }
 
 export function BarraModulo({ vista, ir, alAbrirAyuda }: BarraModuloProps) {
-  const { identidad, puede, salud } = useIdentidad()
+  const { identidad, configOrg, puede } = useIdentidad()
+  const [pendientes, setPendientes] = useState(0)
+
+  useEffect(() => {
+    if (identidad.tipo !== 'listo' || !puede('codigos:codigos:anular')) return
+    let activo = true
+    registroApi
+      .resumen()
+      .then((r) => {
+        if (activo) setPendientes(r.solicitudes_pendientes)
+      })
+      .catch(() => {})
+    return () => {
+      activo = false
+    }
+  }, [identidad, puede, vista])
+
   if (identidad.tipo !== 'listo') return null
 
-  const items: Array<{ id: RutaApp; ruta: string; etiqueta: string; icono: typeof Home; visible: boolean }> = [
-    { id: 'inicio', ruta: '/', etiqueta: 'Inicio', icono: Home, visible: puede('codigos:inicio:ver') },
-    { id: 'generar', ruta: '/generar/', etiqueta: 'Generar código', icono: PlusCircle, visible: puede('codigos:codigos:generar') },
-    { id: 'registro', ruta: '/registro/', etiqueta: 'Registro', icono: ListChecks, visible: puede('codigos:registro:ver') },
-    { id: 'anulaciones', ruta: '/anulaciones/', etiqueta: 'Anulaciones', icono: Ban, visible: puede('codigos:codigos:anular') },
-    { id: 'catalogos', ruta: '/catalogos/', etiqueta: 'Esquema', icono: SlidersHorizontal, visible: puede('codigos:catalogos:administrar') },
+  const esRegistro = vista === 'inicio' || vista === 'registro'
+  const esConfig = vista === 'catalogos' || vista === 'administracion'
+  const puedeConfig =
+    puede('codigos:catalogos:administrar') ||
+    identidad.yo.es_admin_organizacion ||
+    puede('codigos:administracion:gestionar')
+
+  const items = [
     {
-      id: 'administracion',
-      ruta: '/administracion/',
-      etiqueta: 'Administración',
+      id: 'registro',
+      ruta: '/',
+      etiqueta: 'Registro',
+      icono: ListChecks,
+      activo: esRegistro,
+      visible: puede('codigos:registro:ver') || puede('codigos:inicio:ver'),
+      badge: 0,
+    },
+    {
+      id: 'generar',
+      ruta: '/generar/',
+      etiqueta: 'Generar',
+      icono: PlusCircle,
+      activo: vista === 'generar',
+      visible: puede('codigos:codigos:generar'),
+      badge: 0,
+    },
+    {
+      id: 'anulaciones',
+      ruta: '/anulaciones/',
+      etiqueta: 'Anulaciones',
+      icono: Ban,
+      activo: vista === 'anulaciones',
+      visible: puede('codigos:codigos:anular'),
+      badge: pendientes,
+    },
+    {
+      id: 'configuracion',
+      ruta: puede('codigos:catalogos:administrar') ? '/catalogos/' : '/administracion/',
+      etiqueta: 'Configuración',
       icono: Settings,
-      visible: identidad.yo.es_admin_organizacion || puede('codigos:administracion:gestionar'),
+      activo: esConfig,
+      visible: puedeConfig,
+      badge: 0,
     },
   ]
 
   return (
-    <header className="barra-modulo">
-      <div className="barra-modulo-izq">
+    <header className="barra-minimal">
+      <div className="barra-minimal-izq">
         <button type="button" className="barra-marca-btn" onClick={() => ir('/')}>
-          <Isotipo color="morado" tamano={30} />
-          <span className="barra-marca-texto">
-            <strong>Códigos</strong>
-            <small>
-              <span
-                className={`punto-vivo ${salud ? (salud.estado === 'ok' ? '' : 'is-error') : 'is-espera'}`}
-                style={{ width: 6, height: 6, display: 'inline-block' }}
-              />
-              Cereipo Suite
-            </small>
-          </span>
+          <Isotipo color="morado" tamano={26} />
+          <strong className="barra-marca-nombre">Códigos</strong>
         </button>
 
-        <nav className="tabs barra-tabs" aria-label="Navegación de Códigos" role="tablist">
+        <nav className="nav-clean" aria-label="Navegación de Códigos" role="tablist">
           {items
             .filter((i) => i.visible)
             .map((item) => {
@@ -56,24 +95,35 @@ export function BarraModulo({ vista, ir, alAbrirAyuda }: BarraModuloProps) {
                   key={item.id}
                   type="button"
                   role="tab"
-                  aria-selected={vista === item.id}
-                  className="tab"
+                  aria-selected={item.activo}
+                  className={`nav-clean-tab ${item.activo ? 'is-activo' : ''}`}
                   onClick={() => ir(item.ruta)}
                 >
-                  <Icono aria-hidden="true" />
+                  <Icono size={16} aria-hidden="true" />
                   <span>{item.etiqueta}</span>
+                  {item.badge > 0 && <span className="nav-badge">{item.badge}</span>}
                 </button>
               )
             })}
         </nav>
       </div>
 
-      <div className="barra-modulo-der">
-        <button type="button" className="btn-guia-pill" onClick={alAbrirAyuda} title="Abrir guía interactiva del motor de códigos">
+      <div className="barra-minimal-der">
+        <span className="org-pill" title={identidad.yo.organizacion.nombre}>
+          <span className="org-pill-nombre">{identidad.yo.organizacion.nombre}</span>
+          <span className={`org-pill-sigla ${configOrg?.configurada ? '' : 'is-warn'}`}>
+            {configOrg?.configurada ? configOrg.sigla : 'Sin sigla'}
+          </span>
+        </span>
+        <button
+          type="button"
+          className="btn-icono"
+          onClick={alAbrirAyuda}
+          aria-label="Guía del motor de códigos"
+          title="Cómo funciona el motor de códigos (8 segmentos y regla 00)"
+        >
           <HelpCircle aria-hidden="true" />
-          <span>¿Cómo funciona?</span>
         </button>
-        <InsigniaOrganizacion alAbrirGuia={alAbrirAyuda} />
       </div>
     </header>
   )

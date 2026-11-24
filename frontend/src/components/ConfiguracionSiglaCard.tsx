@@ -4,14 +4,13 @@ import { useAvisos } from '../context/AvisosContext'
 import { useIdentidad } from '../context/IdentidadContext'
 import { catalogosApi } from '../services/catalogos'
 import { Aviso, Boton, Casilla, Etiqueta } from '../ui/componentes'
-import { BotonAyuda } from './BotonAyuda'
 
 type ConfiguracionSiglaCardProps = {
   alAbrirAyuda?: () => void
   alSembrarCatalogos?: () => void
 }
 
-export function ConfiguracionSiglaCard({ alAbrirAyuda, alSembrarCatalogos }: ConfiguracionSiglaCardProps) {
+export function ConfiguracionSiglaCard({ alSembrarCatalogos }: ConfiguracionSiglaCardProps) {
   const { configOrg, recargarConfigOrg, puede } = useIdentidad()
   const { notificar } = useAvisos()
   const [sigla, setSigla] = useState('')
@@ -71,17 +70,9 @@ export function ConfiguracionSiglaCard({ alAbrirAyuda, alSembrarCatalogos }: Con
     <div className="card tarjeta-generador">
       <div className="config-sigla-head">
         <div>
-          <div className="titulo-con-ayuda">
-            <h2 className="panel-titulo">Sigla de la organización y notificaciones</h2>
-            <BotonAyuda
-              titulo="Sigla configurable del módulo"
-              texto="Define el prefijo alfanumérico (2 a 10 caracteres) que inicia todos los códigos de tu organización. Una vez que se emite el primer código, la sigla se bloquea automáticamente para proteger el historial."
-              destacado="Puedes actualizar el correo de notificación en cualquier momento."
-              alAbrirGuiaCompleta={alAbrirAyuda}
-            />
-          </div>
+          <h2 className="panel-titulo">Sigla de la organización y notificaciones</h2>
           <p className="seccion-sub">
-            Configura el prefijo inicial que identifica a tu organización en cada código generado.
+            Prefijo alfanumérico (2–10 caracteres) que inicia todos los códigos. Se bloquea al emitir el primero.
           </p>
         </div>
         {bloqueada ? (

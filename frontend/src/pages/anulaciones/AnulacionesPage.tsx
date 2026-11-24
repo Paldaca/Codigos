@@ -1,14 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Check, Inbox, X } from 'lucide-react'
-import { BotonAyuda } from '../../components/BotonAyuda'
-import { InsigniaOrganizacion } from '../../components/InsigniaOrganizacion'
 import { useAvisos } from '../../context/AvisosContext'
 import { registroApi } from '../../services/registro'
 import type { SolicitudAnulacionItem } from '../../types/registro'
 import { Aviso, Boton, Dialogo, Etiqueta } from '../../ui/componentes'
-import { orden } from '../../ui/movimiento'
 
-export function AnulacionesPage({ alAbrirAyuda }: { alAbrirAyuda?: () => void }) {
+export function AnulacionesPage() {
   const { notificar } = useAvisos()
   const [solicitudes, setSolicitudes] = useState<SolicitudAnulacionItem[]>([])
   const [estadoFiltro, setEstadoFiltro] = useState<'pendiente' | ''>('pendiente')
@@ -55,62 +52,47 @@ export function AnulacionesPage({ alAbrirAyuda }: { alAbrirAyuda?: () => void })
   }
 
   return (
-    <section className="pagina">
-      <header className="cabecera-pagina rev" style={orden(0)}>
+    <section className="pagina-clean">
+      <header className="cabecera-clean">
         <div>
-          <div className="titulo-con-ayuda">
-            <h1>Bandeja de anulaciones</h1>
-            <BotonAyuda
-              titulo="Solicitudes de anulación"
-              texto="Cuando un usuario solicita anular un código creado por otra persona, la solicitud llega aquí para aprobación. Anular un código nunca reutiliza su consecutivo."
-              alAbrirGuiaCompleta={alAbrirAyuda}
-            />
-          </div>
+          <h1>Anulaciones</h1>
           <p className="tenue">Aprueba o rechaza las solicitudes de anulación de tu organización.</p>
         </div>
-        <InsigniaOrganizacion alAbrirGuia={alAbrirAyuda} />
+
+        <div className="tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={estadoFiltro === 'pendiente'}
+            className="tab"
+            onClick={() => setEstadoFiltro('pendiente')}
+          >
+            Pendientes
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={estadoFiltro === ''}
+            className="tab"
+            onClick={() => setEstadoFiltro('')}
+          >
+            Historial
+          </button>
+        </div>
       </header>
 
-      <div className="card tarjeta-bloque rev" style={orden(1)}>
-        <div className="registro-toolbar">
-          <div className="tabs" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={estadoFiltro === 'pendiente'}
-              className="tab"
-              onClick={() => setEstadoFiltro('pendiente')}
-            >
-              Pendientes
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={estadoFiltro === ''}
-              className="tab"
-              onClick={() => setEstadoFiltro('')}
-            >
-              Todas
-            </button>
-          </div>
-        </div>
+      {error && <Aviso tono="error">{error}</Aviso>}
 
-        {error && (
-          <div style={{ padding: '0 20px 14px' }}>
-            <Aviso tono="error">{error}</Aviso>
-          </div>
-        )}
-
-        <div className="table-wrap" style={{ borderRadius: 0, borderLeft: 0, borderRight: 0 }}>
+      <div className="surface-clean">
+        <div className="table-wrap table-clean-wrap">
           <table className="table">
             <thead>
               <tr>
                 <th>Código</th>
                 <th>Solicitante</th>
-                <th>Motivo de solicitud</th>
+                <th>Motivo</th>
                 <th>Estado</th>
-                <th className="num">Fecha</th>
-                <th>Acciones</th>
+                <th className="num">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -119,18 +101,22 @@ export function AnulacionesPage({ alAbrirAyuda }: { alAbrirAyuda?: () => void })
                 return (
                   <tr key={s.id}>
                     <td>
-                      <span className="code-chip">{s.codigo}</span>
+                      <span className="codigo-texto">{s.codigo}</span>
                     </td>
-                    <td>{s.solicitante_nombre || s.solicitante_persona_id}</td>
+                    <td>
+                      <div className="celda-meta">
+                        <span>{s.solicitante_nombre || s.solicitante_persona_id}</span>
+                        <small className="mono">{new Date(s.fecha_solicitud).toLocaleDateString('es-VE')}</small>
+                      </div>
+                    </td>
                     <td className="principal">{s.motivo}</td>
                     <td>
                       <Etiqueta tono={tono} punto>
                         {s.estado}
                       </Etiqueta>
                     </td>
-                    <td className="num mono">{new Date(s.fecha_solicitud).toLocaleDateString('es-VE')}</td>
-                    <td>
-                      <div className="celda-acciones">
+                    <td className="num">
+                      <div className="celda-acciones" style={{ justifyContent: 'flex-end' }}>
                         {s.estado === 'pendiente' ? (
                           <>
                             <Boton
@@ -140,7 +126,7 @@ export function AnulacionesPage({ alAbrirAyuda }: { alAbrirAyuda?: () => void })
                               onClick={() => setConfirmando(s)}
                             >
                               <Check aria-hidden="true" />
-                              Aprobar anulación
+                              Aprobar
                             </Boton>
                             <Boton
                               variante="secondary"
@@ -160,15 +146,16 @@ export function AnulacionesPage({ alAbrirAyuda }: { alAbrirAyuda?: () => void })
                   </tr>
                 )
               })}
+
               {solicitudes.length === 0 && (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={5}>
                     <div className="vacio">
                       <span className="icon-badge">
                         <Inbox aria-hidden="true" />
                       </span>
-                      <p className="vacio-titulo">No hay solicitudes en esta vista</p>
-                      <p className="vacio-texto">Cuando alguien solicite anular un código, aparecerá aquí.</p>
+                      <p className="vacio-titulo">Sin solicitudes en esta vista</p>
+                      <p className="vacio-texto">Las solicitudes de anulación aparecerán aquí para revisión.</p>
                     </div>
                   </td>
                 </tr>
@@ -181,8 +168,8 @@ export function AnulacionesPage({ alAbrirAyuda }: { alAbrirAyuda?: () => void })
       <Dialogo
         abierto={Boolean(confirmando)}
         alCerrar={() => setConfirmando(null)}
-        titulo={confirmando ? `Aprobar anulación de ${confirmando.codigo}` : ''}
-        descripcion="Esta acción es irreversible y bloqueará el consecutivo de forma permanente."
+        titulo={confirmando ? `Anular ${confirmando.codigo}` : ''}
+        descripcion="Esta acción es irreversible y el consecutivo no se reutilizará."
         acciones={
           confirmando && (
             <>
@@ -195,7 +182,7 @@ export function AnulacionesPage({ alAbrirAyuda }: { alAbrirAyuda?: () => void })
                 disabled={procesandoId === confirmando.id}
                 onClick={() => resolver(confirmando.id, 'aprobar', confirmando.codigo)}
               >
-                {procesandoId === confirmando.id ? 'Aprobando…' : `Anular ${confirmando.codigo}`}
+                {procesandoId === confirmando.id ? 'Aprobando…' : `Sí, anular ${confirmando.codigo}`}
               </Boton>
             </>
           )
@@ -203,7 +190,7 @@ export function AnulacionesPage({ alAbrirAyuda }: { alAbrirAyuda?: () => void })
       >
         {confirmando && (
           <Aviso tono="warn">
-            <strong>Motivo reportado por {confirmando.solicitante_nombre || 'usuario'}:</strong> {confirmando.motivo}
+            <strong>Motivo:</strong> {confirmando.motivo}
           </Aviso>
         )}
       </Dialogo>
