@@ -46,8 +46,8 @@ Codigos/
 ├── frontend/                       # SPA React + TypeScript + Vite (@cereipo/embed, @cereipo/ui)
 │   └── src/
 │       ├── context/                # IdentidadContext (yo, salud, configOrg, permisos)
-│       ├── services/               # cliente.ts, catalogos.ts, registro.ts, integracion.ts
-│       ├── components/             # Layout, tarjetas, modales de historial
+│       ├── services/               # http.ts, catalogos.ts, registro.ts, integracion.ts
+│       ├── components/             # BannerSinSigla, FranjaEstado, InsigniaOrganizacion, ModalAnulacion, VistaPreviaCodigo
 │       └── pages/                  # inicio/, generador/, registro/, anulaciones/, catalogos/, administracion/
 └── backend/
     ├── .importlinter               # 5 contratos arquitectónicos (D-19)

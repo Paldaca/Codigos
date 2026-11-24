@@ -88,3 +88,35 @@ class AislamientoBaseTests(TestCase):
                             f'INSERT INTO "{AmbitoPropio._meta.db_table}" (organizacion_id, proyecto, codigo, nombre, activo) '
                             "VALUES ('200', '', 'SQL', 'Intruso', true)"
                         )
+
+
+class AislamientoTablasNegocioRLSTests(TestCase):
+    """Verifica aislamiento RLS en las tablas de integración (D-27)."""
+
+    def test_todas_las_tablas_integracion_aisladas_por_organizacion(self):
+        from integracion.models import AsignacionAmbito, MaestroShellCache
+
+        with con_organizacion("100"):
+            ambito = AmbitoPropio.objects.create(codigo="A100", nombre="Ambito 100")
+            AsignacionAmbito.objects.create(persona_id="p1", ambito=ambito)
+            MaestroShellCache.objects.create(entidad="shell.disciplinas", clave="CIV", datos={"nombre": "Civil"})
+
+        modelos = [AmbitoPropio, AsignacionAmbito, MaestroShellCache]
+        for modelo in modelos:
+            with connection.cursor() as cursor:
+                cursor.execute(f'SELECT count(*) FROM "{modelo._meta.db_table}"')
+                self.assertEqual(cursor.fetchone()[0], 0, f"Fuga sin org en {modelo.__name__}")
+
+        with con_organizacion("200"):
+            for modelo in modelos:
+                with connection.cursor() as cursor:
+                    cursor.execute(f'SELECT count(*) FROM "{modelo._meta.db_table}"')
+                    self.assertEqual(cursor.fetchone()[0], 0, f"Fuga en org 200 para {modelo.__name__}")
+            with self.assertRaises(Exception):
+                MaestroShellCache.objects.create(
+                    organizacion_id="100", entidad="shell.disciplinas", clave="HACK", datos={},
+                )
+
+        with con_organizacion("100"):
+            for modelo in modelos:
+                self.assertEqual(modelo.objects.count(), 1)

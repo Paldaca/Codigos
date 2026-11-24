@@ -53,7 +53,7 @@ def buscar_codigos(
     creado_por: str = "",
     fecha_inicio: str = "",
     fecha_fin: str = "",
-    incluir_anulados: bool = True,
+    incluir_anulados: bool = False,
     pagina: int = 1,
     tamano: int = 25,
     persona_id: str = "",
@@ -84,7 +84,12 @@ def buscar_codigos(
         if d2:
             qs = qs.filter(fecha_creacion__lte=make_aware(datetime.combine(d2, time.max)))
 
-    paginador = Paginator(qs.order_by("-fecha_creacion", "-consecutivo"), max(1, min(100, tamano)))
+    orden = (
+        ("-fecha_anulacion", "-fecha_creacion", "-consecutivo")
+        if estado.strip() == CodigoRegistro.Estado.ANULADO
+        else ("-fecha_creacion", "-consecutivo")
+    )
+    paginador = Paginator(qs.order_by(*orden), max(1, min(100, tamano)))
     page_obj = paginador.get_page(pagina)
 
     pendientes_usuario: set = set()

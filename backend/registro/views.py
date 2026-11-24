@@ -89,7 +89,7 @@ def lista_codigos(request):
         creado_por=p.get("creado_por", ""),
         fecha_inicio=p.get("fecha_inicio", ""),
         fecha_fin=p.get("fecha_fin", ""),
-        incluir_anulados=p.get("incluir_anulados", "1") != "0",
+        incluir_anulados=p.get("incluir_anulados", "0") == "1",
         pagina=pagina,
         tamano=tamano,
         persona_id=request.cereipo.persona_id,

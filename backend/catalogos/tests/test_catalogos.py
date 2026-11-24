@@ -81,3 +81,19 @@ class CatalogosTests(TestCase):
             _, kwargs = m_sync.call_args
             registros = kwargs["registros"]
             self.assertTrue(any(r["clave"] == "organizacion:config" and r["datos"]["sigla"] == "PAL" for r in registros))
+
+    def test_aislamiento_rls_modelos_catalogos(self):
+        from django.db import connection
+        from catalogos.models import CatalogoSegmento, ConfiguracionOrganizacion
+
+        with con_organizacion("100"):
+            ConfiguracionOrganizacion.objects.create(sigla="PAL")
+            CatalogoSegmento.objects.create(tipo="disciplina", codigo="C", nombre="Civil")
+
+        with con_organizacion("200"):
+            for modelo in (ConfiguracionOrganizacion, CatalogoSegmento):
+                with connection.cursor() as cursor:
+                    cursor.execute(f'SELECT count(*) FROM "{modelo._meta.db_table}"')
+                    self.assertEqual(cursor.fetchone()[0], 0)
+            with self.assertRaises(Exception):
+                ConfiguracionOrganizacion.objects.create(organizacion_id="100", sigla="HACK")

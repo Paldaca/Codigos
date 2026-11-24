@@ -12,7 +12,10 @@ export function RegistroPage() {
   const [busquedaAplicada, setBusquedaAplicada] = useState(busqueda)
   const [estado, setEstado] = useState('')
   const [origen, setOrigen] = useState('')
-  const [incluirAnulados, setIncluirAnulados] = useState(true)
+  const [creadoPor, setCreadoPor] = useState('')
+  const [fechaInicio, setFechaInicio] = useState('')
+  const [fechaFin, setFechaFin] = useState('')
+  const [incluirAnulados, setIncluirAnulados] = useState(false)
   const [pagina, setPagina] = useState(1)
   const [datos, setDatos] = useState<{ total: number; paginas: number; resultados: CodigoItem[] }>({
     total: 0,
@@ -37,6 +40,9 @@ export function RegistroPage() {
           codigo: busquedaAplicada,
           estado,
           origen,
+          creado_por: creadoPor,
+          fecha_inicio: fechaInicio,
+          fecha_fin: fechaFin,
           incluir_anulados: incluirAnulados,
           pagina,
         },
@@ -47,7 +53,7 @@ export function RegistroPage() {
         if (e instanceof Error && e.name === 'AbortError') return
         setError(e instanceof Error ? e.message : String(e))
       })
-  }, [busquedaAplicada, estado, origen, incluirAnulados, pagina])
+  }, [busquedaAplicada, estado, origen, creadoPor, fechaInicio, fechaFin, incluirAnulados, pagina])
 
   useEffect(() => {
     const ctrl = new AbortController()
@@ -116,6 +122,7 @@ export function RegistroPage() {
             <option value="api">Automático (API)</option>
           </select>
           <select
+            aria-label="Filtrar por estado"
             value={estado}
             onChange={(e) => {
               setPagina(1)
@@ -127,10 +134,39 @@ export function RegistroPage() {
             <option value="reservado">Reservado</option>
             <option value="anulado">Anulado</option>
           </select>
+          <input
+            type="text"
+            aria-label="Filtrar por usuario creador"
+            placeholder="Usuario creador…"
+            value={creadoPor}
+            onChange={(e) => {
+              setPagina(1)
+              setCreadoPor(e.target.value)
+            }}
+          />
+          <input
+            type="date"
+            aria-label="Fecha desde"
+            value={fechaInicio}
+            onChange={(e) => {
+              setPagina(1)
+              setFechaInicio(e.target.value)
+            }}
+          />
+          <input
+            type="date"
+            aria-label="Fecha hasta"
+            value={fechaFin}
+            onChange={(e) => {
+              setPagina(1)
+              setFechaFin(e.target.value)
+            }}
+          />
           <label className="check-linea">
             <input
               type="checkbox"
-              checked={incluirAnulados}
+              checked={estado === 'anulado' || incluirAnulados}
+              disabled={estado !== ''}
               onChange={(e) => {
                 setPagina(1)
                 setIncluirAnulados(e.target.checked)

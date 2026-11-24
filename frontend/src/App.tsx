@@ -129,11 +129,36 @@ function ContenidoApp() {
         </nav>
       )}
 
-      {vista === 'inicio' && <InicioPage ir={ir} />}
-      {vista === 'generar' && <GeneradorPage ir={ir} />}
-      {vista === 'registro' && <RegistroPage />}
-      {vista === 'anulaciones' && <AnulacionesPage />}
-      {vista === 'catalogos' && <CatalogosPage />}
+      {vista === 'inicio' &&
+        (puede('codigos:inicio:ver') ? (
+          <InicioPage ir={ir} />
+        ) : (
+          <div className="tarjeta">Sin permiso para ver el inicio de Códigos.</div>
+        ))}
+      {vista === 'generar' &&
+        (puede('codigos:codigos:generar') ? (
+          <GeneradorPage ir={ir} />
+        ) : (
+          <div className="tarjeta">Sin permiso para generar códigos.</div>
+        ))}
+      {vista === 'registro' &&
+        (puede('codigos:registro:ver') ? (
+          <RegistroPage />
+        ) : (
+          <div className="tarjeta">Sin permiso para consultar el registro.</div>
+        ))}
+      {vista === 'anulaciones' &&
+        (puede('codigos:codigos:anular') ? (
+          <AnulacionesPage />
+        ) : (
+          <div className="tarjeta">Sin permiso para gestionar anulaciones.</div>
+        ))}
+      {vista === 'catalogos' &&
+        (puede('codigos:catalogos:administrar') ? (
+          <CatalogosPage />
+        ) : (
+          <div className="tarjeta">Sin permiso para administrar catálogos.</div>
+        ))}
       {vista === 'administracion' && <PanelAdministracionPage />}
     </main>
   )

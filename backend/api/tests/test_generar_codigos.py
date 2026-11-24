@@ -166,3 +166,43 @@ class ApiServicioGenerarCodigosTests(TestCase):
             r_bad = self._get_firmado("/api/servicios/generar-codigos/catalogos/", secreto="mal-secreto")
             self.assertEqual(r_bad.status_code, 403)
             self.assertEqual(r_bad.json()["error"], "credencial-invalida")
+
+    def test_conflicto_idempotencia_http_409(self):
+        with servicio_simulado(self.auths):
+            r1 = self._post_firmado(
+                "/api/servicios/generar-codigos/reservar/",
+                {
+                    "items": [
+                        {
+                            "anio": "2026",
+                            "numero_proyecto": "14",
+                            "subproyecto": "A",
+                            "departamento": "IN",
+                            "disciplina": "C",
+                            "tipo_documento": "DOC",
+                            "motivo": "Primera",
+                            "clave_idempotencia": "doc-conflicto-1",
+                        }
+                    ]
+                },
+            )
+            self.assertEqual(r1.status_code, 201)
+            r2 = self._post_firmado(
+                "/api/servicios/generar-codigos/generar/",
+                {
+                    "items": [
+                        {
+                            "anio": "2026",
+                            "numero_proyecto": "14",
+                            "subproyecto": "A",
+                            "departamento": "IN",
+                            "disciplina": "C",
+                            "tipo_documento": "PLA",
+                            "motivo": "Otro tipo",
+                            "clave_idempotencia": "doc-conflicto-1",
+                        }
+                    ]
+                },
+            )
+            self.assertEqual(r2.status_code, 409)
+            self.assertEqual(r2.json()["error"], "conflicto-idempotencia")

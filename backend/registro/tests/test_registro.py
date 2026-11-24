@@ -275,6 +275,36 @@ class GeneradorYAnulacionesTests(TestCase):
         self.assertEqual(r2["PAL"]["nuevos_codigos"], 0)
         self.assertEqual(r2["PAL"]["solicitudes_migradas"], 0)
 
+    def test_aislamiento_rls_modelos_registro(self):
+        from django.db import connection
+        from registro.models import CodigoRegistro, ContadorSecuencia, SolicitudAnulacion
+
+        with con_organizacion("100"):
+            ContadorSecuencia.objects.create(
+                anio="2026", numero_proyecto="14", subproyecto="A", departamento="IN",
+                disciplina="C", tipo_documento="PLA", ultimo_consecutivo=1,
+            )
+            reg = CodigoRegistro.objects.create(
+                sigla="PAL", anio="2026", numero_proyecto="14", subproyecto="A", departamento="IN",
+                disciplina="C", tipo_documento="PLA", consecutivo=1, codigo="PAL-26-14-A-IN-C-PLA-001",
+                motivo="Prueba RLS",
+            )
+            SolicitudAnulacion.objects.create(
+                codigo_registro=reg, solicitante_persona_id="p1", solicitante_nombre="Ana", motivo="Prueba",
+            )
+
+        with con_organizacion("200"):
+            for modelo in (ContadorSecuencia, CodigoRegistro, SolicitudAnulacion):
+                with connection.cursor() as cursor:
+                    cursor.execute(f'SELECT count(*) FROM "{modelo._meta.db_table}"')
+                    self.assertEqual(cursor.fetchone()[0], 0)
+            with self.assertRaises(Exception):
+                CodigoRegistro.objects.create(
+                    organizacion_id="100", sigla="HACK", anio="2026", numero_proyecto="14", subproyecto="A",
+                    departamento="IN", disciplina="C", tipo_documento="PLA", consecutivo=99,
+                    codigo="HACK-26-14-A-IN-C-PLA-099", motivo="Intruso",
+                )
+
 
 class ConcurrenciaContadorTests(TransactionTestCase):
     def setUp(self):

@@ -6,6 +6,7 @@ Aplicación de la suite **Cereipo** para la configuración, generación (manual 
 
 ## Documentación
 
+- [Índice de documentación (`docs/README.md`)](docs/README.md)
 - [Contexto para asistentes e ingeniería (`docs/AI_CONTEXT.md`)](docs/AI_CONTEXT.md)
 - [Arquitectura (`docs/ARCHITECTURE.md`)](docs/ARCHITECTURE.md)
 - [Reglas de negocio (`docs/BUSINESS_RULES.md`)](docs/BUSINESS_RULES.md)

@@ -36,8 +36,16 @@ forbidden_modules =
     registro
     api
 
+[importlinter:contract:registro_no_importa_api]
+name = registro no importa api (D-19)
+type = forbidden
+source_modules =
+    registro
+forbidden_modules =
+    api
+
 [importlinter:contract:registro_solo_servicios_catalogos]
-name = registro solo consume catalogos.services, nunca catalogos.models (D-19)
+name = registro solo consume catalogos.services, nunca modelos/vistas de catalogos ni integracion (D-19)
 type = forbidden
 allow_indirect_imports = true
 source_modules =
@@ -46,10 +54,15 @@ forbidden_modules =
     catalogos.models
     catalogos.views
     catalogos.serializers
-    api
+    catalogos.urls
+    catalogos.admin
+    integracion.models
+    integracion.views
+    integracion.urls
+    integracion.admin
 
 [importlinter:contract:api_solo_capa_servicios]
-name = api solo consume services de catalogos y registro, nunca sus modelos (D-19)
+name = api solo consume services de catalogos y registro, nunca sus modelos ni vistas (D-19)
 type = forbidden
 allow_indirect_imports = true
 source_modules =
@@ -57,5 +70,15 @@ source_modules =
 forbidden_modules =
     catalogos.models
     catalogos.views
+    catalogos.serializers
+    catalogos.urls
+    catalogos.admin
     registro.models
     registro.views
+    registro.serializers
+    registro.urls
+    registro.admin
+    integracion.models
+    integracion.views
+    integracion.urls
+    integracion.admin
