@@ -80,7 +80,55 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: |
+          if [ -z "${{ secrets.CEREIPO_KIT_TOKEN }}" ]; then
+            echo "::error::Falta el secreto CEREIPO_KIT_TOKEN."
+            exit 1
+          fi
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.CEREIPO_KIT_TOKEN }}" >> .npmrc
           npm ci --no-audit --no-fund
       - run: npm run lint
       - run: npm run build
+
+  imagen:
+    name: Imagen y despliegue (D-36)
+    needs: [backend, frontend]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Nombre de la imagen en minúsculas
+        run: echo "IMAGEN=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGEN }}
+          tags: |
+            type=sha,prefix=,format=short
+            type=ref,event=branch
+            type=raw,value=pruebas,enable=${{ github.ref == 'refs/heads/Cereipo' }}
+            type=raw,value=produccion,enable=${{ github.ref == 'refs/heads/Main' }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: APP_VERSION=${{ github.ref_name }}-${{ github.sha }}
+          secrets: |
+            kit_token=${{ secrets.CEREIPO_KIT_TOKEN }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
