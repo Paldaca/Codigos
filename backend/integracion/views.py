@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+import logging
+
 from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET
 
-from cereipo_sso.decoradores import requiere_identidad
+from cereipo_sso.decoradores import requiere_identidad, respuesta_sin_identidad
 
 from .models import AmbitoPropio, MaestroShellCache
 from .services.salud import OK, revisar_base, revisar_redis
+
+log = logging.getLogger("integracion")
 
 
 @never_cache
@@ -33,9 +37,17 @@ def salud(request):
 @never_cache
 @ensure_csrf_cookie
 @require_GET
-@requiere_identidad
 def yo(request):
-    i = request.cereipo
+    i = getattr(request, "cereipo", None)
+    estado = getattr(request, "cereipo_estado", None)
+    if i is None or estado != "ok":
+        log.warning(
+            "Acceso denegado en /api/yo/: sso_activo=%s estado=%s tiene_cookie_shell=%s",
+            settings.CEREIPO_SSO_ACTIVO,
+            estado,
+            "cereipo_shell_sesion" in request.COOKIES,
+        )
+        return respuesta_sin_identidad(request)
     return JsonResponse(
         {
             "persona": {"id": i.persona_id, "nombre": i.nombre, "correo": i.correo},

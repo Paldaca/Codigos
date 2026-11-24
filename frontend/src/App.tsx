@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useCereipoEmbed } from '@cereipo/embed'
 
+import { AyudaMotorModal } from './components/AyudaMotorModal'
+import { BarraModulo } from './components/BarraModulo'
+import { AvisosProvider } from './context/AvisosContext'
 import { IdentidadProvider, useIdentidad } from './context/IdentidadContext'
 import { PanelAdministracionPage } from './pages/administracion/PanelAdministracionPage'
 import { AnulacionesPage } from './pages/anulaciones/AnulacionesPage'
@@ -10,6 +13,7 @@ import { InicioPage } from './pages/inicio/InicioPage'
 import { RegistroPage } from './pages/registro/RegistroPage'
 import { resolverRuta } from './rutas'
 import { configurarManejadorAuth } from './services/http'
+import { Aviso } from './ui/componentes'
 
 function rutaActualNavegador() {
   return `${window.location.pathname}${window.location.search}`
@@ -17,7 +21,8 @@ function rutaActualNavegador() {
 
 function ContenidoApp() {
   const [ruta, setRuta] = useState(rutaActualNavegador)
-  const { identidad, puede } = useIdentidad()
+  const [ayudaAbierta, setAyudaAbierta] = useState(false)
+  const { identidad, configOrg, puede } = useIdentidad()
 
   useEffect(() => {
     const alVolver = () => setRuta(rutaActualNavegador())
@@ -31,6 +36,7 @@ function ContenidoApp() {
       window.history.pushState(null, '', limpia)
     }
     setRuta(limpia)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
   const { embebida, notificarSesionVencida, notificarSinAcceso } = useCereipoEmbed({
@@ -63,111 +69,100 @@ function ContenidoApp() {
 
   if (identidad.tipo === 'cargando') {
     return (
-      <main className="pagina">
-        <div className="tarjeta">Cargando sesión de Códigos…</div>
-      </main>
+      <div className="cz">
+        <main className="shell-interno">
+          <div className="esqueleto" style={{ height: 56, marginBottom: 16 }} />
+          <div className="esqueleto" style={{ height: 220, borderRadius: 'var(--r-xl)' }} />
+        </main>
+      </div>
     )
   }
 
   if (identidad.tipo === 'error') {
     return (
-      <main className="pagina">
-        <div className="tarjeta">
-          <h2>No se pudo iniciar Códigos</h2>
-          <p className="error">{identidad.mensaje}</p>
-        </div>
-      </main>
+      <div className="cz">
+        <main className="shell-interno">
+          <div className="card" style={{ padding: 28 }}>
+            <h2 style={{ fontSize: 21, marginBottom: 10 }}>No se pudo iniciar Códigos</h2>
+            <Aviso tono="error">{identidad.mensaje}</Aviso>
+          </div>
+        </main>
+      </div>
     )
   }
 
   if (identidad.tipo === 'sin-identidad') {
     return (
-      <main className="pagina">
-        <div className="tarjeta">
-          <h2>Acceso no disponible</h2>
-          <p className="tenue">{identidad.mensaje}</p>
-        </div>
-      </main>
+      <div className="cz">
+        <main className="shell-interno">
+          <div className="card" style={{ padding: 28 }}>
+            <h2 style={{ fontSize: 21, marginBottom: 10 }}>Acceso no disponible</h2>
+            <Aviso tono="warn">{identidad.mensaje}</Aviso>
+          </div>
+        </main>
+      </div>
     )
   }
 
   const vista = resolverRuta(ruta)
   const enIframe = embebida
+  const abrirAyuda = () => setAyudaAbierta(true)
 
   return (
-    <main className="shell-interno">
-      {!enIframe && (
-        <nav className="nav-local" aria-label="Navegación local de Códigos">
-          <button type="button" className={`nav-btn ${vista === 'inicio' ? 'activo' : ''}`} onClick={() => ir('/')}>
-            Inicio
-          </button>
-          {puede('codigos:codigos:generar') && (
-            <button type="button" className={`nav-btn ${vista === 'generar' ? 'activo' : ''}`} onClick={() => ir('/generar/')}>
-              Generar códigos
-            </button>
-          )}
-          {puede('codigos:registro:ver') && (
-            <button type="button" className={`nav-btn ${vista === 'registro' ? 'activo' : ''}`} onClick={() => ir('/registro/')}>
-              Registro
-            </button>
-          )}
-          {puede('codigos:codigos:anular') && (
-            <button type="button" className={`nav-btn ${vista === 'anulaciones' ? 'activo' : ''}`} onClick={() => ir('/anulaciones/')}>
-              Anulaciones
-            </button>
-          )}
-          {puede('codigos:catalogos:administrar') && (
-            <button type="button" className={`nav-btn ${vista === 'catalogos' ? 'activo' : ''}`} onClick={() => ir('/catalogos/')}>
-              Catálogos
-            </button>
-          )}
-          {(identidad.yo.es_admin_organizacion || puede('codigos:administracion:gestionar')) && (
-            <button type="button" className={`nav-btn ${vista === 'administracion' ? 'activo' : ''}`} onClick={() => ir('/administracion/')}>
-              Administración
-            </button>
-          )}
-        </nav>
-      )}
+    <div className="cz">
+      <main className="shell-interno">
+        {!enIframe && <BarraModulo vista={vista} ir={ir} alAbrirAyuda={abrirAyuda} />}
 
-      {vista === 'inicio' &&
-        (puede('codigos:inicio:ver') ? (
-          <InicioPage ir={ir} />
-        ) : (
-          <div className="tarjeta">Sin permiso para ver el inicio de Códigos.</div>
-        ))}
-      {vista === 'generar' &&
-        (puede('codigos:codigos:generar') ? (
-          <GeneradorPage ir={ir} />
-        ) : (
-          <div className="tarjeta">Sin permiso para generar códigos.</div>
-        ))}
-      {vista === 'registro' &&
-        (puede('codigos:registro:ver') ? (
-          <RegistroPage />
-        ) : (
-          <div className="tarjeta">Sin permiso para consultar el registro.</div>
-        ))}
-      {vista === 'anulaciones' &&
-        (puede('codigos:codigos:anular') ? (
-          <AnulacionesPage />
-        ) : (
-          <div className="tarjeta">Sin permiso para gestionar anulaciones.</div>
-        ))}
-      {vista === 'catalogos' &&
-        (puede('codigos:catalogos:administrar') ? (
-          <CatalogosPage />
-        ) : (
-          <div className="tarjeta">Sin permiso para administrar catálogos.</div>
-        ))}
-      {vista === 'administracion' && <PanelAdministracionPage />}
-    </main>
+        <div key={vista} className="vista-transicion">
+          {vista === 'inicio' &&
+            (puede('codigos:inicio:ver') ? (
+              <InicioPage ir={ir} alAbrirAyuda={abrirAyuda} />
+            ) : (
+              <Aviso tono="warn">Sin permiso para ver el inicio de Códigos.</Aviso>
+            ))}
+          {vista === 'generar' &&
+            (puede('codigos:codigos:generar') ? (
+              <GeneradorPage ir={ir} alAbrirAyuda={abrirAyuda} />
+            ) : (
+              <Aviso tono="warn">Sin permiso para generar códigos.</Aviso>
+            ))}
+          {vista === 'registro' &&
+            (puede('codigos:registro:ver') ? (
+              <RegistroPage ir={ir} alAbrirAyuda={abrirAyuda} />
+            ) : (
+              <Aviso tono="warn">Sin permiso para consultar el registro.</Aviso>
+            ))}
+          {vista === 'anulaciones' &&
+            (puede('codigos:codigos:anular') ? (
+              <AnulacionesPage alAbrirAyuda={abrirAyuda} />
+            ) : (
+              <Aviso tono="warn">Sin permiso para gestionar anulaciones.</Aviso>
+            ))}
+          {vista === 'catalogos' &&
+            (puede('codigos:catalogos:administrar') ? (
+              <CatalogosPage alAbrirAyuda={abrirAyuda} />
+            ) : (
+              <Aviso tono="warn">Sin permiso para administrar catálogos.</Aviso>
+            ))}
+          {vista === 'administracion' && <PanelAdministracionPage alAbrirAyuda={abrirAyuda} />}
+        </div>
+
+        <AyudaMotorModal
+          abierto={ayudaAbierta}
+          alCerrar={() => setAyudaAbierta(false)}
+          siglaOrg={configOrg?.configurada ? configOrg.sigla : undefined}
+        />
+      </main>
+    </div>
   )
 }
 
 export default function App() {
   return (
     <IdentidadProvider>
-      <ContenidoApp />
+      <AvisosProvider>
+        <ContenidoApp />
+      </AvisosProvider>
     </IdentidadProvider>
   )
 }

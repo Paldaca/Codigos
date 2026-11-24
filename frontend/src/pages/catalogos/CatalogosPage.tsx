@@ -1,28 +1,33 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { Database, Plus, Save } from 'lucide-react'
+import { BotonAyuda } from '../../components/BotonAyuda'
 import { InsigniaOrganizacion } from '../../components/InsigniaOrganizacion'
+import { useAvisos } from '../../context/AvisosContext'
 import { useIdentidad } from '../../context/IdentidadContext'
 import { catalogosApi } from '../../services/catalogos'
 import type { CatalogosAgrupados, TipoSegmento } from '../../types/catalogos'
+import { Aviso, Boton, Casilla, Etiqueta } from '../../ui/componentes'
+import { orden } from '../../ui/movimiento'
 
 const ETIQUETAS_TIPO: Record<TipoSegmento, string> = {
-  proyecto: 'Número de proyecto (NN)',
+  proyecto: 'Proyecto (NN)',
   subproyecto: 'Subproyecto (S)',
   departamento: 'Departamento (DEPT)',
   disciplina: 'Disciplina (DISC)',
-  tipo_documento: 'Tipo de documento / plano (TIPO)',
+  tipo_documento: 'Tipo (TIPO)',
 }
 
-export function CatalogosPage() {
+export function CatalogosPage({ alAbrirAyuda }: { alAbrirAyuda?: () => void }) {
   const { configOrg, recargarConfigOrg } = useIdentidad()
+  const { notificar } = useAvisos()
   const [sigla, setSigla] = useState('')
   const [correo, setCorreo] = useState('')
-  const [notificar, setNotificar] = useState(false)
+  const [notificarCorreo, setNotificarCorreo] = useState(false)
   const [catalogos, setCatalogos] = useState<CatalogosAgrupados | null>(null)
-  const [tipoActivo, setTipoActivo] = useState<TipoSegmento>('disciplina')
+  const [tipoActivo, setTipoActivo] = useState<TipoSegmento>('proyecto')
   const [nuevoCodigo, setNuevoCodigo] = useState('')
   const [nuevoNombre, setNuevoNombre] = useState('')
   const [nuevoShell, setNuevoShell] = useState('')
-  const [mensaje, setMensaje] = useState('')
   const [error, setError] = useState('')
   const [enviando, setEnviando] = useState(false)
 
@@ -30,7 +35,7 @@ export function CatalogosPage() {
     if (configOrg) {
       setSigla(configOrg.sigla)
       setCorreo(configOrg.correo_notificacion)
-      setNotificar(configOrg.notificar_por_correo)
+      setNotificarCorreo(configOrg.notificar_por_correo)
     }
   }, [configOrg])
 
@@ -53,16 +58,15 @@ export function CatalogosPage() {
   async function guardarSigla(e: FormEvent) {
     e.preventDefault()
     setError('')
-    setMensaje('')
     setEnviando(true)
     try {
       await catalogosApi.guardarConfigOrg({
         sigla,
         correo_notificacion: correo,
-        notificar_por_correo: notificar,
+        notificar_por_correo: notificarCorreo,
       })
       await recargarConfigOrg()
-      setMensaje('Configuración de la organización guardada.')
+      notificar('Configuración guardada', `Sigla activa: ${sigla}`, 'ok')
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -73,7 +77,6 @@ export function CatalogosPage() {
   async function agregarSegmento(e: FormEvent) {
     e.preventDefault()
     setError('')
-    setMensaje('')
     setEnviando(true)
     try {
       await catalogosApi.crearSegmento({
@@ -82,11 +85,11 @@ export function CatalogosPage() {
         nombre: nuevoNombre,
         codigo_shell: nuevoShell,
       })
+      notificar('Segmento guardado', `${nuevoCodigo} · ${nuevoNombre}`, 'ok')
       setNuevoCodigo('')
       setNuevoNombre('')
       setNuevoShell('')
       cargarSegmentos()
-      setMensaje('Segmento guardado en el catálogo.')
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -109,12 +112,11 @@ export function CatalogosPage() {
 
   async function sembrar() {
     setError('')
-    setMensaje('')
     setEnviando(true)
     try {
       const r = await catalogosApi.sembrarEstandar()
       cargarSegmentos()
-      setMensaje(`Catálogos estándar aplicados (${r.creados} nuevos, ${r.total} en total).`)
+      notificar('Catálogos estándar aplicados', `${r.creados} nuevos elementos (${r.total} en total).`, 'ok')
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -124,77 +126,138 @@ export function CatalogosPage() {
 
   return (
     <section className="pagina">
-      <header className="cabecera-pagina">
+      <header className="cabecera-pagina rev" style={orden(0)}>
         <div>
-          <h1>Sigla de organización y catálogos</h1>
+          <div className="titulo-con-ayuda">
+            <h1>Sigla de organización y catálogos</h1>
+            <BotonAyuda
+              titulo="Catálogos de segmentos"
+              texto="Aquí defines la sigla fija de tu organización y los valores permitidos para Proyecto, Subproyecto, Departamento, Disciplina y Tipo."
+              destacado="Recuerda mantener activo «00» en Proyecto y «0 / 00» en Subproyecto para los códigos generales."
+              alAbrirGuiaCompleta={alAbrirAyuda}
+            />
+          </div>
           <p className="tenue">Define la sigla inicial fija de tu organización y administra los segmentos permitidos.</p>
         </div>
-        <InsigniaOrganizacion />
+        <InsigniaOrganizacion alAbrirGuia={alAbrirAyuda} />
       </header>
 
-      {mensaje && <p className="ok">{mensaje}</p>}
-      {error && <p className="error">{error}</p>}
+      {error && <Aviso tono="error">{error}</Aviso>}
 
-      <div className="tarjeta">
-        <h2>Identificador inicial de la organización</h2>
+      <div className="card tarjeta-generador rev" style={orden(1)}>
+        <div className="panel-head" style={{ padding: '0 0 14px' }}>
+          <h2 className="panel-titulo">Identificador inicial de la organización</h2>
+        </div>
+
         <form onSubmit={guardarSigla} className="form-col">
           <div className="rejilla-segmentos">
-            <label className="campo">
-              <span>Sigla fija (2–10 caracteres)</span>
+            <label className="field">
+              <span className="field-label">Sigla fija (2–10 caracteres)</span>
               <input
                 type="text"
                 value={sigla}
                 onChange={(e) => setSigla(e.target.value.toUpperCase())}
                 disabled={Boolean(configOrg?.bloqueada_por_codigos)}
-                placeholder="Ej. PAL"
+                placeholder="Ej. CER"
                 required
               />
             </label>
-            <label className="campo">
-              <span>Correo de notificación (opcional)</span>
-              <input type="email" value={correo} onChange={(e) => setCorreo(e.target.value)} placeholder="control@empresa.com" />
+            <label className="field">
+              <span className="field-label">Correo de notificación (opcional)</span>
+              <input
+                type="email"
+                value={correo}
+                onChange={(e) => setCorreo(e.target.value)}
+                placeholder="control@empresa.com"
+              />
             </label>
           </div>
-          <label className="check-linea">
-            <input type="checkbox" checked={notificar} onChange={(e) => setNotificar(e.target.checked)} />
-            <span>Enviar correo al confirmar códigos manuales</span>
-          </label>
+
+          <Casilla checked={notificarCorreo} onChange={(e) => setNotificarCorreo(e.target.checked)}>
+            Enviar correo al confirmar códigos manuales
+          </Casilla>
+
           {configOrg?.bloqueada_por_codigos && (
-            <p className="tenue">La sigla está bloqueada porque ya existen códigos registrados para esta organización.</p>
+            <Aviso tono="muted">
+              La sigla está bloqueada porque ya existen códigos registrados para esta organización.
+            </Aviso>
           )}
+
           <div className="fila-botones">
-            <button type="submit" className="btn btn-primario" disabled={enviando}>Guardar configuración</button>
-            <button type="button" className="btn btn-secundario" onClick={sembrar} disabled={enviando}>
+            <Boton type="submit" variante="primary" cargando={enviando} disabled={enviando}>
+              <Save aria-hidden="true" />
+              Guardar configuración
+            </Boton>
+            <Boton type="button" variante="secondary" onClick={sembrar} disabled={enviando}>
+              <Database aria-hidden="true" />
               Cargar catálogos estándar
-            </button>
+            </Boton>
           </div>
         </form>
       </div>
 
-      <div className="tarjeta">
-        <h2>Catálogos de segmentos</h2>
-        <div className="fila-botones" style={{ marginBottom: '1rem', flexWrap: 'wrap' }}>
-          {(Object.keys(ETIQUETAS_TIPO) as TipoSegmento[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              className={`btn ${tipoActivo === t ? 'btn-primario' : 'btn-secundario'}`}
-              onClick={() => setTipoActivo(t)}
-            >
-              {ETIQUETAS_TIPO[t]}
-            </button>
-          ))}
+      <div className="card tarjeta-bloque rev" style={orden(2)}>
+        <div className="panel-head">
+          <h2 className="panel-titulo">Catálogos de segmentos</h2>
         </div>
 
-        <form onSubmit={agregarSegmento} className="filtros-registro" style={{ marginBottom: '1rem' }}>
-          <input type="text" placeholder="Código (ej. PLA)" value={nuevoCodigo} onChange={(e) => setNuevoCodigo(e.target.value.toUpperCase())} required />
-          <input type="text" placeholder="Nombre" value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)} required />
-          <input type="text" placeholder="Código Shell (opcional, ej. CIV)" value={nuevoShell} onChange={(e) => setNuevoShell(e.target.value.toUpperCase())} />
-          <button type="submit" className="btn btn-primario" disabled={enviando}>Agregar / actualizar</button>
-        </form>
+        <div style={{ padding: '0 20px 14px', display: 'grid', gap: 14 }}>
+          <div className="tabs" role="tablist">
+            {(Object.keys(ETIQUETAS_TIPO) as TipoSegmento[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                role="tab"
+                aria-selected={tipoActivo === t}
+                className="tab"
+                onClick={() => setTipoActivo(t)}
+              >
+                {ETIQUETAS_TIPO[t]}
+              </button>
+            ))}
+          </div>
 
-        <div className="tabla-envoltura">
-          <table className="tabla">
+          <form onSubmit={agregarSegmento} className="filtros-avanzados" style={{ padding: 14, borderRadius: 'var(--r-md)', border: '1px solid var(--line)' }}>
+            <label className="field">
+              <span className="field-label">Código</span>
+              <input
+                type="text"
+                placeholder="Ej. PLA"
+                value={nuevoCodigo}
+                onChange={(e) => setNuevoCodigo(e.target.value.toUpperCase())}
+                required
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">Nombre</span>
+              <input
+                type="text"
+                placeholder="Descripción"
+                value={nuevoNombre}
+                onChange={(e) => setNuevoNombre(e.target.value)}
+                required
+              />
+            </label>
+            <label className="field">
+              <span className="field-label">Código Shell (opcional)</span>
+              <input
+                type="text"
+                placeholder="Ej. CIV"
+                value={nuevoShell}
+                onChange={(e) => setNuevoShell(e.target.value.toUpperCase())}
+              />
+            </label>
+            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <Boton type="submit" variante="primary" tamano="sm" disabled={enviando}>
+                <Plus aria-hidden="true" />
+                Agregar / actualizar
+              </Boton>
+            </div>
+          </form>
+        </div>
+
+        <div className="table-wrap" style={{ borderRadius: 0, borderLeft: 0, borderRight: 0, borderBottom: 0 }}>
+          <table className="table">
             <thead>
               <tr>
                 <th>Código</th>
@@ -207,14 +270,25 @@ export function CatalogosPage() {
             <tbody>
               {(catalogos?.[tipoActivo] ?? []).map((s) => (
                 <tr key={s.id}>
-                  <td><code>{s.codigo}</code></td>
-                  <td>{s.nombre}</td>
-                  <td>{s.codigo_shell ? <code>{s.codigo_shell}</code> : '—'}</td>
-                  <td><span className={`pill ${s.activo ? 'pill-confirmado' : 'pill-anulado'}`}>{s.activo ? 'Activo' : 'Inactivo'}</span></td>
                   <td>
-                    <button type="button" className="btn btn-sm btn-secundario" disabled={enviando} onClick={() => alternarActivo(s.id, s.activo)}>
+                    <span className="code-chip">{s.codigo}</span>
+                  </td>
+                  <td className="principal">{s.nombre}</td>
+                  <td className="mono">{s.codigo_shell || '—'}</td>
+                  <td>
+                    <Etiqueta tono={s.activo ? 'ok' : 'danger'} punto>
+                      {s.activo ? 'Activo' : 'Inactivo'}
+                    </Etiqueta>
+                  </td>
+                  <td>
+                    <Boton
+                      variante="secondary"
+                      tamano="sm"
+                      disabled={enviando}
+                      onClick={() => alternarActivo(s.id, s.activo)}
+                    >
                       {s.activo ? 'Desactivar' : 'Activar'}
-                    </button>
+                    </Boton>
                   </td>
                 </tr>
               ))}

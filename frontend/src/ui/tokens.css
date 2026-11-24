@@ -1,0 +1,98 @@
+/* Tokens del sistema de diseño de Cereipo (docs/Cereipo_desing_system.md §11).
+   Ningún color, radio, sombra o tamaño se escribe a mano: sale de aquí. */
+:root {
+  /* Tinta */
+  --ink-900: #0B1B33;
+  --ink-800: #1A2B47;
+  --ink-700: #2A3A55;
+  --ink-500: #52627A;
+  --ink-400: #7A889C;
+  --ink-300: #A9B5C6;
+
+  /* Superficies */
+  --bg: #FFFFFF;
+  --bg-soft: #F5F8FA;
+  --surface: #FFFFFF;
+  --surface-2: #F9FBFC;
+  --surface-app: #FBFCFD;
+  --line: #E3E8EF;
+  --line-strong: #D2D9E3;
+
+  /* Acento (verde azulado) */
+  --accent-50: #E9F7F6;
+  --accent-100: #CDEDEA;
+  --accent-300: #7FD6CF;
+  --accent-500: #12B5AE;
+  --accent-600: #0B7F7A;
+  --accent-700: #096B67;
+  --accent-light: #5FE0D8;
+
+  /* Marca: verde = principal (Shell); cada módulo usa su propio color */
+  --brand-green: #23CE6B;
+  --brand-blue: #72A1E5;
+  --brand-purple: #9883E5;
+
+  /* Tonos de estado */
+  --ok-bg: #E2F7EA;
+  --ok-fg: #146C3B;
+  --warn-bg: #FFF2D9;
+  --warn-fg: #8A5300;
+  --info-bg: #E8F0FC;
+  --info-fg: #2A5AA0;
+  --danger-bg: #FDECEC;
+  --danger-fg: #B42318;
+  --muted-bg: #EEF2F6;
+  --muted-fg: #4A5A72;
+
+  /* Texto sobre fondo oscuro */
+  --on-dark: #FFFFFF;
+  --on-dark-2: #DCE6F2;
+  --on-dark-3: #AFC0D6;
+  --on-dark-4: #7F93AE;
+
+  /* Gráficos */
+  --chart-in: #12B5AE;
+  --chart-out: #33476A;
+
+  /* Tipografía */
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", var(--font-sans);
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* Radios */
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-ctl: 10px;
+  --r-md: 12px;
+  --r-card: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --r-pill: 999px;
+
+  /* Sombras (siempre teñidas de --ink-900) */
+  --shadow-sm: 0 1px 2px rgba(11, 27, 51, .06);
+  --shadow-md: 0 1px 2px rgba(11, 27, 51, .05), 0 8px 24px -8px rgba(11, 27, 51, .12);
+  --shadow-lg: 0 2px 4px rgba(11, 27, 51, .04), 0 24px 48px -16px rgba(11, 27, 51, .18);
+  --shadow-xl: 0 4px 8px rgba(11, 27, 51, .04), 0 40px 80px -24px rgba(11, 27, 51, .25);
+  --shadow-action: 0 1px 2px rgba(11, 27, 51, .12), 0 8px 20px -8px rgba(11, 127, 122, .55);
+  --ring-focus: 0 0 0 3px rgba(11, 127, 122, .18);
+  --ring-live: 0 0 0 4px rgba(18, 181, 174, .18);
+  --ring-danger: 0 0 0 3px rgba(180, 35, 24, .15);
+
+  /* Diseño y movimiento */
+  --container: 1200px;
+  --gutter: 24px;
+  --header-h: 64px;
+  --ease: cubic-bezier(.2, .7, .2, 1);
+  --ease-rebote: cubic-bezier(.34, 1.56, .64, 1);
+  --dur-fast: .2s;
+  --dur-base: .25s;
+  --dur-enter: .35s;
+  --dur-escena: .6s;
+}
+
+@media (max-width: 640px) {
+  :root {
+    --gutter: 16px;
+  }
+}

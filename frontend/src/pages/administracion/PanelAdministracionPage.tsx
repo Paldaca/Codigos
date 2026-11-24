@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
+import { ExternalLink, Shield } from 'lucide-react'
 import { obtenerOrigenShell } from '@cereipo/embed'
+import { BotonAyuda } from '../../components/BotonAyuda'
 import { InsigniaOrganizacion } from '../../components/InsigniaOrganizacion'
 import { useIdentidad } from '../../context/IdentidadContext'
 import { integracionApi } from '../../services/integracion'
+import { Aviso } from '../../ui/componentes'
+import { orden } from '../../ui/movimiento'
 
-export function PanelAdministracionPage() {
+export function PanelAdministracionPage({ alAbrirAyuda }: { alAbrirAyuda?: () => void }) {
   const { identidad, puede } = useIdentidad()
   const [ambitos, setAmbitos] = useState<Array<{ proyecto: string; codigo: string; nombre: string; activo: boolean }>>([])
   const [error, setError] = useState('')
@@ -31,12 +35,10 @@ export function PanelAdministracionPage() {
   if (!autorizado) {
     return (
       <section className="pagina">
-        <div className="tarjeta">
-          <h2>Acceso restringido</h2>
-          <p className="tenue">
-            Este panel requiere ser administrador de la organización o tener el permiso <code>codigos:administracion:gestionar</code>.
-          </p>
-        </div>
+        <Aviso tono="warn">
+          Este panel requiere ser administrador de la organización o tener el permiso{' '}
+          <code>codigos:administracion:gestionar</code>.
+        </Aviso>
       </section>
     )
   }
@@ -45,42 +47,61 @@ export function PanelAdministracionPage() {
 
   return (
     <section className="pagina">
-      <header className="cabecera-pagina">
+      <header className="cabecera-pagina rev" style={orden(0)}>
         <div>
-          <h1>Administración de Códigos</h1>
-          <p className="tenue">Panel de integración, acceso y ámbitos locales de la organización (D-42).</p>
+          <div className="titulo-con-ayuda">
+            <h1>Administración de Códigos</h1>
+            <BotonAyuda
+              titulo="Integración con Cereipo Shell"
+              texto="Los roles, permisos y usuarios se administran de forma centralizada desde Cereipo Shell para toda la suite."
+              alAbrirGuiaCompleta={alAbrirAyuda}
+            />
+          </div>
+          <p className="tenue">Panel de integración, acceso y ámbitos locales de la organización.</p>
         </div>
-        <InsigniaOrganizacion />
+        <InsigniaOrganizacion alAbrirGuia={alAbrirAyuda} />
       </header>
 
-      {error && <p className="error">{error}</p>}
+      {error && <Aviso tono="error">{error}</Aviso>}
 
-      <div className="tarjeta">
-        <h2>Acceso y roles de la organización</h2>
-        <p className="tenue">
-          La asignación de roles (<code>administrador</code>, <code>aprobador</code>, <code>generador</code>, <code>consulta</code>)
-          y permisos de las personas se administra centralmente desde la consola de Cereipo Shell.
-        </p>
-        {origenShell && (
-          <p>
-            <a className="btn btn-secundario" href={`${origenShell}/administracion/`} target="_top" rel="noreferrer">
-              Abrir consola del Shell
-            </a>
-          </p>
-        )}
+      <div className="card tarjeta-generador rev" style={orden(1)}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+          <span className="icon-badge">
+            <Shield aria-hidden="true" />
+          </span>
+          <div style={{ display: 'grid', gap: 10 }}>
+            <h2 className="panel-titulo">Acceso y roles de la organización</h2>
+            <p className="tenue">
+              La asignación de roles (<code>administrador</code>, <code>aprobador</code>, <code>generador</code>,{' '}
+              <code>consulta</code>) y permisos de las personas se administra centralmente desde la consola de Cereipo
+              Shell.
+            </p>
+            {origenShell && (
+              <div>
+                <a className="btn btn-secondary btn-sm" href={`${origenShell}/administracion/`} target="_top" rel="noreferrer">
+                  Abrir consola del Shell
+                  <ExternalLink aria-hidden="true" />
+                </a>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="tarjeta">
-        <h2>Ámbitos propios registrados</h2>
+      <div className="card tarjeta-generador rev" style={orden(2)}>
+        <h2 className="panel-titulo" style={{ marginBottom: 8 }}>
+          Ámbitos propios registrados
+        </h2>
         {ambitos.length === 0 ? (
           <p className="tenue">
             Códigos opera a nivel de toda la organización activa sin ámbitos locales restringidos.
           </p>
         ) : (
-          <ul>
+          <ul style={{ display: 'grid', gap: 8 }}>
             {ambitos.map((a) => (
-              <li key={a.codigo}>
-                <code>{a.codigo}</code> · {a.nombre}
+              <li key={a.codigo} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span className="code-chip">{a.codigo}</span>
+                <span>{a.nombre}</span>
               </li>
             ))}
           </ul>
