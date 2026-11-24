@@ -5,8 +5,13 @@ export const catalogosApi = {
   obtenerConfigOrg: () => pedir<ConfiguracionOrg>('GET', '/api/catalogos/organizacion/'),
   guardarConfigOrg: (datos: { sigla: string; correo_notificacion: string; notificar_por_correo: boolean; motivo?: string }) =>
     pedir<ConfiguracionOrg>('PUT', '/api/catalogos/organizacion/', datos),
-  listarSegmentos: (incluirInactivos = false) =>
-    pedir<{ segmentos: CatalogosAgrupados }>('GET', `/api/catalogos/segmentos/${incluirInactivos ? '?incluir_inactivos=1' : ''}`),
+  listarSegmentos: (incluirInactivos = false, signal?: AbortSignal) =>
+    pedir<{ segmentos: CatalogosAgrupados }>(
+      'GET',
+      `/api/catalogos/segmentos/${incluirInactivos ? '?incluir_inactivos=1' : ''}`,
+      undefined,
+      { signal },
+    ),
   crearSegmento: (datos: {
     tipo: TipoSegmento
     codigo: string

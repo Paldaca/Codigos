@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 
 from cereipo_sso.historial import calcular_cambios, capturar_estado, registrar_cambio
 from cereipo_sso.organizacion import organizacion_actual
@@ -80,15 +80,27 @@ def crear_o_actualizar_segmento(
         accion = "editado"
     else:
         antes = None
-        seg = CatalogoSegmento.objects.create(
-            tipo=tipo,
-            codigo=cod,
-            nombre=nom[:120],
-            codigo_shell=(codigo_shell or "").strip().upper()[:40],
-            orden=int(orden or 0),
-            activo=bool(activo),
-        )
-        accion = "creado"
+        try:
+            with transaction.atomic():
+                seg = CatalogoSegmento.objects.create(
+                    tipo=tipo,
+                    codigo=cod,
+                    nombre=nom[:120],
+                    codigo_shell=(codigo_shell or "").strip().upper()[:40],
+                    orden=int(orden or 0),
+                    activo=bool(activo),
+                )
+            accion = "creado"
+        except IntegrityError:
+            existente = CatalogoSegmento.objects.select_for_update().get(tipo=tipo, codigo=cod)
+            antes = capturar_estado(existente, campos)
+            existente.nombre = nom[:120]
+            existente.codigo_shell = (codigo_shell or "").strip().upper()[:40]
+            existente.orden = int(orden or 0)
+            existente.activo = bool(activo)
+            existente.save()
+            seg = existente
+            accion = "editado"
 
     despues = capturar_estado(seg, campos)
     registrar_cambio(
@@ -140,7 +152,7 @@ def sembrar_catalogos_estandar(*, actor_persona_id: str = "", actor_nombre: str 
     _agregar(CatalogoSegmento.Tipo.TIPO_DOCUMENTO, TIPOS_DOCUMENTO_ESTANDAR)
 
     if por_crear:
-        CatalogoSegmento.objects.bulk_create(por_crear)
+        CatalogoSegmento.objects.bulk_create(por_crear, ignore_conflicts=True)
         snapshot = construir_snapshot_catalogos(org_id)
         transaction.on_commit(lambda: publicar_snapshot_catalogos(org_id, snapshot))
 
@@ -199,8 +211,10 @@ def validar_y_resolver_segmentos(
                 400,
             )
 
-    disc_cod = (disciplina or "").strip().upper()
-    disc_shell = (disciplina_shell or "").strip().upper()
+    if not isinstance(disciplina, str) or not isinstance(disciplina_shell, str):
+        raise ErrorNegocio("La disciplina debe ser texto.", "datos-invalidos", 400)
+    disc_cod = disciplina.strip().upper()
+    disc_shell = disciplina_shell.strip().upper()
     if disc_cod:
         seg_disc = activos.filter(tipo=CatalogoSegmento.Tipo.DISCIPLINA, codigo=disc_cod).first()
     elif disc_shell:

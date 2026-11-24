@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 
 from cereipo_sso.historial import calcular_cambios, capturar_estado, registrar_cambio
 from cereipo_sso.organizacion import organizacion_actual
@@ -19,6 +19,21 @@ def obtener_configuracion() -> ConfiguracionOrganizacion | None:
 
 def obtener_sigla_obligatoria() -> str:
     config = obtener_configuracion()
+    if config is None or not config.sigla:
+        raise ErrorNegocio(
+            "La organización todavía no tiene configurada su sigla inicial en Códigos.",
+            "sigla-no-configurada",
+            409,
+        )
+    return config.sigla
+
+
+def obtener_y_bloquear_sigla() -> str:
+    """Obtiene la sigla serializando frente a cambios concurrentes mientras no esté bloqueada."""
+    config = obtener_configuracion()
+    if config is not None and config.bloqueada_por_codigos and config.sigla:
+        return config.sigla
+    config = ConfiguracionOrganizacion.objects.select_for_update().first()
     if config is None or not config.sigla:
         raise ErrorNegocio(
             "La organización todavía no tiene configurada su sigla inicial en Códigos.",
@@ -67,12 +82,29 @@ def guardar_configuracion(
         accion = "editado"
     else:
         antes = None
-        config = ConfiguracionOrganizacion.objects.create(
-            sigla=sigla_limpia,
-            correo_notificacion=(correo_notificacion or "").strip(),
-            notificar_por_correo=bool(notificar_por_correo),
-        )
-        accion = "creado"
+        try:
+            with transaction.atomic():
+                config = ConfiguracionOrganizacion.objects.create(
+                    sigla=sigla_limpia,
+                    correo_notificacion=(correo_notificacion or "").strip(),
+                    notificar_por_correo=bool(notificar_por_correo),
+                )
+            accion = "creado"
+        except IntegrityError:
+            existente = ConfiguracionOrganizacion.objects.select_for_update().get()
+            antes = capturar_estado(existente, ["sigla", "correo_notificacion", "notificar_por_correo"])
+            if existente.bloqueada_por_codigos and sigla_limpia != existente.sigla:
+                raise ErrorNegocio(
+                    "No se puede cambiar la sigla inicial porque la organización ya tiene códigos generados.",
+                    "sigla-bloqueada",
+                    409,
+                )
+            existente.sigla = sigla_limpia
+            existente.correo_notificacion = (correo_notificacion or "").strip()
+            existente.notificar_por_correo = bool(notificar_por_correo)
+            existente.save()
+            config = existente
+            accion = "editado"
 
     despues = capturar_estado(config, ["sigla", "correo_notificacion", "notificar_por_correo"])
     registrar_cambio(

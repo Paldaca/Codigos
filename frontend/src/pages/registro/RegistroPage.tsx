@@ -8,7 +8,8 @@ import type { CodigoItem } from '../../types/registro'
 
 export function RegistroPage() {
   const { identidad, puede } = useIdentidad()
-  const [busqueda, setBusqueda] = useState('')
+  const [busqueda, setBusqueda] = useState(() => new URLSearchParams(window.location.search).get('codigo') ?? '')
+  const [busquedaAplicada, setBusquedaAplicada] = useState(busqueda)
   const [estado, setEstado] = useState('')
   const [origen, setOrigen] = useState('')
   const [incluirAnulados, setIncluirAnulados] = useState(true)
@@ -23,21 +24,36 @@ export function RegistroPage() {
   const [mensaje, setMensaje] = useState('')
   const [error, setError] = useState('')
 
-  const cargar = useCallback(() => {
+  useEffect(() => {
+    const id = window.setTimeout(() => setBusquedaAplicada(busqueda), 250)
+    return () => window.clearTimeout(id)
+  }, [busqueda])
+
+  const cargar = useCallback((signal?: AbortSignal) => {
     setError('')
     registroApi
-      .listar({
-        codigo: busqueda,
-        estado,
-        origen,
-        incluir_anulados: incluirAnulados,
-        pagina,
-      })
+      .listar(
+        {
+          codigo: busquedaAplicada,
+          estado,
+          origen,
+          incluir_anulados: incluirAnulados,
+          pagina,
+        },
+        signal,
+      )
       .then((r) => setDatos({ total: r.total, paginas: r.paginas, resultados: r.resultados }))
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
-  }, [busqueda, estado, origen, incluirAnulados, pagina])
+      .catch((e: unknown) => {
+        if (e instanceof Error && e.name === 'AbortError') return
+        setError(e instanceof Error ? e.message : String(e))
+      })
+  }, [busquedaAplicada, estado, origen, incluirAnulados, pagina])
 
-  useEffect(cargar, [cargar])
+  useEffect(() => {
+    const ctrl = new AbortController()
+    cargar(ctrl.signal)
+    return () => ctrl.abort()
+  }, [cargar])
 
   const personaId = identidad.tipo === 'listo' ? identidad.yo.persona.id : ''
   const esAprobador = puede('codigos:codigos:anular')

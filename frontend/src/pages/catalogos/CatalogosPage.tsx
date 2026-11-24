@@ -24,6 +24,7 @@ export function CatalogosPage() {
   const [nuevoShell, setNuevoShell] = useState('')
   const [mensaje, setMensaje] = useState('')
   const [error, setError] = useState('')
+  const [enviando, setEnviando] = useState(false)
 
   useEffect(() => {
     if (configOrg) {
@@ -33,19 +34,27 @@ export function CatalogosPage() {
     }
   }, [configOrg])
 
-  const cargarSegmentos = useCallback(() => {
+  const cargarSegmentos = useCallback((signal?: AbortSignal) => {
     catalogosApi
-      .listarSegmentos(true)
+      .listarSegmentos(true, signal)
       .then((r) => setCatalogos(r.segmentos))
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e: unknown) => {
+        if (e instanceof Error && e.name === 'AbortError') return
+        setError(e instanceof Error ? e.message : String(e))
+      })
   }, [])
 
-  useEffect(cargarSegmentos, [cargarSegmentos])
+  useEffect(() => {
+    const ctrl = new AbortController()
+    cargarSegmentos(ctrl.signal)
+    return () => ctrl.abort()
+  }, [cargarSegmentos])
 
   async function guardarSigla(e: FormEvent) {
     e.preventDefault()
     setError('')
     setMensaje('')
+    setEnviando(true)
     try {
       await catalogosApi.guardarConfigOrg({
         sigla,
@@ -56,12 +65,16 @@ export function CatalogosPage() {
       setMensaje('Configuración de la organización guardada.')
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setEnviando(false)
     }
   }
 
   async function agregarSegmento(e: FormEvent) {
     e.preventDefault()
     setError('')
+    setMensaje('')
+    setEnviando(true)
     try {
       await catalogosApi.crearSegmento({
         tipo: tipoActivo,
@@ -76,26 +89,36 @@ export function CatalogosPage() {
       setMensaje('Segmento guardado en el catálogo.')
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setEnviando(false)
     }
   }
 
   async function alternarActivo(id: number, activo: boolean) {
+    setError('')
+    setEnviando(true)
     try {
       await catalogosApi.actualizarSegmento(id, { activo: !activo })
       cargarSegmentos()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setEnviando(false)
     }
   }
 
   async function sembrar() {
     setError('')
+    setMensaje('')
+    setEnviando(true)
     try {
       const r = await catalogosApi.sembrarEstandar()
       cargarSegmentos()
       setMensaje(`Catálogos estándar aplicados (${r.creados} nuevos, ${r.total} en total).`)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setEnviando(false)
     }
   }
 
@@ -140,8 +163,8 @@ export function CatalogosPage() {
             <p className="tenue">La sigla está bloqueada porque ya existen códigos registrados para esta organización.</p>
           )}
           <div className="fila-botones">
-            <button type="submit" className="btn btn-primario">Guardar configuración</button>
-            <button type="button" className="btn btn-secundario" onClick={sembrar}>
+            <button type="submit" className="btn btn-primario" disabled={enviando}>Guardar configuración</button>
+            <button type="button" className="btn btn-secundario" onClick={sembrar} disabled={enviando}>
               Cargar catálogos estándar
             </button>
           </div>
@@ -167,7 +190,7 @@ export function CatalogosPage() {
           <input type="text" placeholder="Código (ej. PLA)" value={nuevoCodigo} onChange={(e) => setNuevoCodigo(e.target.value.toUpperCase())} required />
           <input type="text" placeholder="Nombre" value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)} required />
           <input type="text" placeholder="Código Shell (opcional, ej. CIV)" value={nuevoShell} onChange={(e) => setNuevoShell(e.target.value.toUpperCase())} />
-          <button type="submit" className="btn btn-primario">Agregar / actualizar</button>
+          <button type="submit" className="btn btn-primario" disabled={enviando}>Agregar / actualizar</button>
         </form>
 
         <div className="tabla-envoltura">
@@ -189,7 +212,7 @@ export function CatalogosPage() {
                   <td>{s.codigo_shell ? <code>{s.codigo_shell}</code> : '—'}</td>
                   <td><span className={`pill ${s.activo ? 'pill-confirmado' : 'pill-anulado'}`}>{s.activo ? 'Activo' : 'Inactivo'}</span></td>
                   <td>
-                    <button type="button" className="btn btn-sm btn-secundario" onClick={() => alternarActivo(s.id, s.activo)}>
+                    <button type="button" className="btn btn-sm btn-secundario" disabled={enviando} onClick={() => alternarActivo(s.id, s.activo)}>
                       {s.activo ? 'Desactivar' : 'Activar'}
                     </button>
                   </td>

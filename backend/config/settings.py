@@ -31,7 +31,7 @@ if not SECRET_KEY:
         raise ImproperlyConfigured("Falta DJANGO_SECRET_KEY (obligatoria con DJANGO_DEBUG=false).")
     SECRET_KEY = f"solo-local-{APP_CODIGO}-no-usar-en-servidor"
 
-ALLOWED_HOSTS = csv_env("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1" if DEBUG else "")
+ALLOWED_HOSTS = csv_env("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1" if DEBUG else "codigos.cereipo.com")
 CSRF_TRUSTED_ORIGINS = csv_env("DJANGO_CSRF_TRUSTED_ORIGINS", "http://localhost:5192,http://localhost:5190" if DEBUG else "")
 
 SESSION_COOKIE_NAME = f"cereipo_{APP_CODIGO}_sesion"
@@ -170,11 +170,13 @@ EMAIL_PORT = int_env("EMAIL_PORT", 465)
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "").strip()
 EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "").strip()
 EMAIL_USE_SSL = bool_env("EMAIL_USE_SSL", True)
+EMAIL_USE_TLS = bool_env("EMAIL_USE_TLS", False)
+EMAIL_TIMEOUT = int_env("EMAIL_TIMEOUT", 10)
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "notificaciones@cereipo.com").strip()
 EMAIL_BACKEND = (
     "django.core.mail.backends.smtp.EmailBackend"
     if EMAIL_HOST
-    else "django.core.mail.backends.locmem.EmailBackend"
+    else ("django.core.mail.backends.console.EmailBackend" if DEBUG else "django.core.mail.backends.dummy.EmailBackend")
 )
 
 LOGGING = {

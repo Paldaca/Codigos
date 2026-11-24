@@ -34,7 +34,7 @@ export const registroApi = {
     pedir<{ sigla: string; previsualizaciones: PrevisualizacionItem[] }>('POST', '/api/registro/previsualizar/', { items }),
   generar: (items: ItemGenerar[]) =>
     pedir<{ resultados: CodigoItem[]; advertencia_correo: string | null }>('POST', '/api/registro/generar/', { items }),
-  listar: (filtros: FiltroRegistro = {}) => {
+  listar: (filtros: FiltroRegistro = {}, signal?: AbortSignal) => {
     const q = new URLSearchParams()
     Object.entries(filtros).forEach(([k, v]) => {
       if (v === undefined || v === '') return
@@ -45,16 +45,22 @@ export const registroApi = {
     return pedir<{ total: number; pagina: number; paginas: number; resultados: CodigoItem[] }>(
       'GET',
       `/api/registro/codigos/${qs ? `?${qs}` : ''}`,
+      undefined,
+      { signal },
     )
   },
-  detalle: (id: string) => pedir<{ codigo: CodigoItem; historial: RegistroHistorial[] }>('GET', `/api/registro/codigos/${id}/`),
-  anular: (id: string, motivo: string) => pedir<{ codigo: CodigoItem }>('POST', `/api/registro/codigos/${id}/anular/`, { motivo }),
+  detalle: (id: string, signal?: AbortSignal) =>
+    pedir<{ codigo: CodigoItem; historial: RegistroHistorial[] }>('GET', `/api/registro/codigos/${encodeURIComponent(id)}/`, undefined, { signal }),
+  anular: (id: string, motivo: string) =>
+    pedir<{ codigo: CodigoItem }>('POST', `/api/registro/codigos/${encodeURIComponent(id)}/anular/`, { motivo }),
   solicitarAnulacion: (id: string, motivo: string) =>
-    pedir<{ id: number; estado: string }>('POST', `/api/registro/codigos/${id}/solicitar-anulacion/`, { motivo }),
-  listarSolicitudes: (estado = '') =>
+    pedir<{ id: number; estado: string }>('POST', `/api/registro/codigos/${encodeURIComponent(id)}/solicitar-anulacion/`, { motivo }),
+  listarSolicitudes: (estado = '', signal?: AbortSignal) =>
     pedir<{ resultados: SolicitudAnulacionItem[] }>(
       'GET',
       `/api/registro/solicitudes-anulacion/${estado ? `?estado=${encodeURIComponent(estado)}` : ''}`,
+      undefined,
+      { signal },
     ),
   resolverSolicitud: (id: number, accion: 'aprobar' | 'rechazar', motivo_resolucion = '') =>
     pedir<{ id: number; estado: string }>('POST', `/api/registro/solicitudes-anulacion/${id}/resolver/`, {

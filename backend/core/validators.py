@@ -12,7 +12,9 @@ REGEX_SEGMENTO = re.compile(r"^[A-Z0-9]{1,10}$")
 
 
 def validar_sigla_organizacion(valor: str) -> str:
-    sigla = (valor or "").strip().upper()
+    if not isinstance(valor, str):
+        raise ErrorNegocio("La sigla debe ser texto.", "sigla-invalida", 400)
+    sigla = valor.strip().upper()
     if not REGEX_SIGLA.match(sigla):
         raise ErrorNegocio(
             "La sigla de la organización debe tener entre 2 y 10 caracteres alfanuméricos en mayúsculas.",
@@ -23,7 +25,9 @@ def validar_sigla_organizacion(valor: str) -> str:
 
 
 def validar_anio(valor: str | int) -> str:
-    anio = str(valor or "").strip()
+    if isinstance(valor, bool) or not isinstance(valor, (str, int)):
+        raise ErrorNegocio("El año debe ser texto o entero de 4 dígitos.", "anio-invalido", 400)
+    anio = str(valor).strip()
     if not REGEX_ANIO.match(anio):
         raise ErrorNegocio("El año debe tener exactamente 4 dígitos (ej. 2026).", "anio-invalido", 400)
     num = int(anio)
@@ -33,7 +37,9 @@ def validar_anio(valor: str | int) -> str:
 
 
 def normalizar_codigo_segmento(valor: str, nombre: str) -> str:
-    limpio = (valor or "").strip().upper()
+    if not isinstance(valor, str):
+        raise ErrorNegocio(f"El segmento «{nombre}» debe ser texto.", "segmento-invalido", 400)
+    limpio = valor.strip().upper()
     if not limpio or not REGEX_SEGMENTO.match(limpio):
         raise ErrorNegocio(
             f"El segmento «{nombre}» es inválido ({valor!r}).",

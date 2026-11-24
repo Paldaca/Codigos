@@ -12,7 +12,7 @@ from core.exceptions import ErrorNegocio
 from integracion.permissions import TieneIdentidad, requiere_permiso, tiene_permiso
 
 from .models import CodigoRegistro
-from .serializers import MotivoSerializer, ResolverSolicitudSerializer
+from .serializers import ItemManualSerializer, MotivoSerializer, ResolverSolicitudSerializer
 from .services import (
     anular_codigo_directo,
     buscar_codigos,
@@ -28,10 +28,17 @@ from .services import (
 
 def _extraer_items(data) -> list[dict]:
     if isinstance(data, dict) and "items" in data:
-        return data["items"]
-    if isinstance(data, dict):
-        return [data]
-    return []
+        raw = data["items"]
+    elif isinstance(data, dict):
+        raw = [data]
+    else:
+        raise ErrorNegocio("El cuerpo debe ser un objeto JSON o una lista de ítems.", "datos-invalidos", 400)
+    if not isinstance(raw, list) or not raw:
+        raise ErrorNegocio("Debes enviar al menos un ítem válido.", "datos-invalidos", 400)
+    serializer = ItemManualSerializer(data=raw, many=True)
+    if not serializer.is_valid():
+        raise ErrorNegocio("Datos inválidos en los ítems.", "datos-invalidos", 400, extra={"detalles": serializer.errors})
+    return list(serializer.validated_data)
 
 
 @api_view(["GET"])

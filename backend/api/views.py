@@ -7,6 +7,7 @@ organización validado por `ServicioAPIMixin` (ORM + RLS).
 
 from __future__ import annotations
 
+from django.db import transaction
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -32,6 +33,8 @@ from .services.bitacora import registrar_llamada
 
 class ServicioBaseView(ServicioAPIMixin, APIView):
     servicio_codigo = "generar-codigos"
+    authentication_classes = ()
+    permission_classes = ()
 
 
 class CatalogosServicioView(ServicioBaseView):
@@ -39,7 +42,7 @@ class CatalogosServicioView(ServicioBaseView):
         ctx = request.cereipo_servicio
         sigla = obtener_sigla_obligatoria()
         segmentos = catalogo_agrupado(solo_activos=True)
-        registrar_llamada(ctx=ctx, operacion="catalogos", estado_http=200)
+        transaction.on_commit(lambda: registrar_llamada(ctx=ctx, operacion="catalogos", estado_http=200))
         return Response(
             {
                 "v": 1,
@@ -71,12 +74,11 @@ class _AsignacionLoteView(ServicioBaseView):
         items_res = resultado["resultados"]
         hubo_nuevos = any(not item["repetido"] for item in items_res)
         estado_http = status.HTTP_201_CREATED if hubo_nuevos else status.HTTP_200_OK
-        registrar_llamada(
-            ctx=ctx,
-            operacion=self.operacion_nombre,
-            estado_http=estado_http,
-            cantidad=len(items_res),
-            referencia=items_res[0]["referencia_externa"] if items_res else "",
+        op = self.operacion_nombre
+        cant = len(items_res)
+        ref = items_res[0]["referencia_externa"] if items_res else ""
+        transaction.on_commit(
+            lambda: registrar_llamada(ctx=ctx, operacion=op, estado_http=estado_http, cantidad=cant, referencia=ref)
         )
         return Response({"v": 1, "resultados": items_res}, status=estado_http)
 
@@ -104,7 +106,9 @@ class ConfirmarServicioView(ServicioBaseView):
             actor_persona_id=d["actor_persona_id"],
             actor_nombre=d["actor_nombre"],
         )
-        registrar_llamada(ctx=ctx, operacion="confirmar", estado_http=200, cantidad=len(resultados))
+        transaction.on_commit(
+            lambda: registrar_llamada(ctx=ctx, operacion="confirmar", estado_http=200, cantidad=len(resultados))
+        )
         return Response({"v": 1, "resultados": resultados})
 
 
@@ -122,7 +126,9 @@ class AnularServicioView(ServicioBaseView):
             actor_persona_id=d["actor_persona_id"],
             actor_nombre=d["actor_nombre"],
         )
-        registrar_llamada(ctx=ctx, operacion="anular", estado_http=200, cantidad=len(resultados))
+        transaction.on_commit(
+            lambda: registrar_llamada(ctx=ctx, operacion="anular", estado_http=200, cantidad=len(resultados))
+        )
         return Response({"v": 1, "resultados": resultados})
 
 
@@ -137,5 +143,7 @@ class ConsultarServicioView(ServicioBaseView):
             codigos=d["codigos"],
             referencias_externas=d["referencias_externas"],
         )
-        registrar_llamada(ctx=ctx, operacion="consultar", estado_http=200, cantidad=len(resultados))
+        transaction.on_commit(
+            lambda: registrar_llamada(ctx=ctx, operacion="consultar", estado_http=200, cantidad=len(resultados))
+        )
         return Response({"v": 1, "resultados": resultados})

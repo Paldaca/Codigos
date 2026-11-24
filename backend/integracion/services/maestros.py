@@ -17,13 +17,15 @@ ENTIDADES_CONSUMIDAS = ("shell.clientes", "shell.proyectos", "shell.disciplinas"
 def refrescar_maestros_shell() -> dict[str, int]:
     """Lee cambios incrementales de clientes, proyectos y disciplinas desde el Shell."""
     resumen: dict[str, int] = {}
-    with con_organizacion(TODAS):
-        for entidad in ENTIDADES_CONSUMIDAS:
+    for entidad in ENTIDADES_CONSUMIDAS:
+        with con_organizacion(TODAS):
             cursor, _ = CursorMaestro.objects.get_or_create(entidad=entidad)
-            actualizados = 0
             desde = cursor.marca or None
-            while True:
-                respuesta = leer_maestro(entidad, desde=desde)
+        actualizados = 0
+        while True:
+            respuesta = leer_maestro(entidad, desde=desde)
+            with con_organizacion(TODAS):
+                cursor, _ = CursorMaestro.objects.get_or_create(entidad=entidad)
                 for item in respuesta.resultados:
                     org_id = str(item.get("organizacion_id") or "").strip()
                     clave = str(item.get("clave") or "").strip()
@@ -42,10 +44,10 @@ def refrescar_maestros_shell() -> dict[str, int]:
                 if respuesta.marca:
                     cursor.marca = respuesta.marca
                     cursor.save(update_fields=["marca", "actualizado_en"])
-                if not respuesta.hay_mas:
-                    break
-                desde = respuesta.marca
-            resumen[entidad] = actualizados
+            if not respuesta.hay_mas or not respuesta.marca or respuesta.marca == desde:
+                break
+            desde = respuesta.marca
+        resumen[entidad] = actualizados
     return resumen
 
 

@@ -6,26 +6,41 @@ import type { SolicitudAnulacionItem } from '../../types/registro'
 export function AnulacionesPage() {
   const [solicitudes, setSolicitudes] = useState<SolicitudAnulacionItem[]>([])
   const [estadoFiltro, setEstadoFiltro] = useState<'pendiente' | ''>('pendiente')
+  const [procesandoId, setProcesandoId] = useState<number | null>(null)
   const [error, setError] = useState('')
   const [mensaje, setMensaje] = useState('')
 
-  const cargar = useCallback(() => {
+  const cargar = useCallback((signal?: AbortSignal) => {
     registroApi
-      .listarSolicitudes(estadoFiltro)
+      .listarSolicitudes(estadoFiltro, signal)
       .then((r) => setSolicitudes(r.resultados))
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e: unknown) => {
+        if (e instanceof Error && e.name === 'AbortError') return
+        setError(e instanceof Error ? e.message : String(e))
+      })
   }, [estadoFiltro])
 
-  useEffect(cargar, [cargar])
+  useEffect(() => {
+    const ctrl = new AbortController()
+    cargar(ctrl.signal)
+    return () => ctrl.abort()
+  }, [cargar])
 
-  async function resolver(id: number, accion: 'aprobar' | 'rechazar') {
+  async function resolver(id: number, accion: 'aprobar' | 'rechazar', codigo: string) {
+    if (accion === 'aprobar' && !window.confirm(`¿Aprobar la anulación irreversible del código ${codigo}?`)) {
+      return
+    }
     setError('')
+    setMensaje('')
+    setProcesandoId(id)
     try {
       await registroApi.resolverSolicitud(id, accion)
       setMensaje(accion === 'aprobar' ? 'Solicitud aprobada y código anulado.' : 'Solicitud rechazada.')
       cargar()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
+    } finally {
+      setProcesandoId(null)
     }
   }
 
@@ -83,10 +98,20 @@ export function AnulacionesPage() {
                   <td className="celda-acciones">
                     {s.estado === 'pendiente' ? (
                       <>
-                        <button type="button" className="btn btn-sm btn-peligro" onClick={() => resolver(s.id, 'aprobar')}>
-                          Aprobar anulación
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-peligro"
+                          disabled={procesandoId === s.id}
+                          onClick={() => resolver(s.id, 'aprobar', s.codigo)}
+                        >
+                          {procesandoId === s.id ? 'Procesando…' : 'Aprobar anulación'}
                         </button>
-                        <button type="button" className="btn btn-sm btn-secundario" onClick={() => resolver(s.id, 'rechazar')}>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-secundario"
+                          disabled={procesandoId === s.id}
+                          onClick={() => resolver(s.id, 'rechazar', s.codigo)}
+                        >
                           Rechazar
                         </button>
                       </>

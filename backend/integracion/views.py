@@ -53,6 +53,9 @@ def yo(request):
 @require_GET
 @requiere_identidad
 def ambitos(request):
+    i = request.cereipo
+    if not (i.es_admin_organizacion or i.puede("codigos:administracion:gestionar")):
+        return JsonResponse({"error": "sin-acceso", "mensaje": "No tienes permiso para ver ámbitos."}, status=403)
     proyecto = request.GET.get("proyecto", "")
     consulta = AmbitoPropio.objects.all()
     if proyecto:
@@ -61,7 +64,7 @@ def ambitos(request):
         {
             "ambitos": [
                 {"proyecto": a.proyecto, "codigo": a.codigo, "nombre": a.nombre, "activo": a.activo}
-                for a in consulta
+                for a in consulta[:500]
             ]
         }
     )
@@ -71,7 +74,13 @@ def ambitos(request):
 @require_GET
 @requiere_identidad
 def maestros_shell(request):
+    i = request.cereipo
+    permitidos = ("codigos:inicio:ver", "codigos:registro:ver", "codigos:codigos:generar", "codigos:catalogos:administrar")
+    if not any(i.puede(p) for p in permitidos):
+        return JsonResponse({"error": "sin-acceso", "mensaje": "No tienes permiso para consultar maestros."}, status=403)
     entidad = request.GET.get("entidad", "").strip()
+    if entidad and entidad not in MaestroShellCache.Entidad.values:
+        return JsonResponse({"error": "datos-invalidos", "mensaje": f"Entidad inválida: {entidad!r}."}, status=400)
     qs = MaestroShellCache.objects.filter(activo=True)
     if entidad:
         qs = qs.filter(entidad=entidad)
@@ -79,7 +88,7 @@ def maestros_shell(request):
         {
             "resultados": [
                 {"entidad": m.entidad, "clave": m.clave, "datos": m.datos}
-                for m in qs
+                for m in qs[:500]
             ]
         }
     )

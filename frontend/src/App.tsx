@@ -9,28 +9,34 @@ import { GeneradorPage } from './pages/generador/GeneradorPage'
 import { InicioPage } from './pages/inicio/InicioPage'
 import { RegistroPage } from './pages/registro/RegistroPage'
 import { resolverRuta } from './rutas'
+import { configurarManejadorAuth } from './services/http'
+
+function rutaActualNavegador() {
+  return `${window.location.pathname}${window.location.search}`
+}
 
 function ContenidoApp() {
-  const [ruta, setRuta] = useState(() => window.location.pathname)
+  const [ruta, setRuta] = useState(rutaActualNavegador)
   const { identidad, puede } = useIdentidad()
 
   useEffect(() => {
-    const alVolver = () => setRuta(window.location.pathname)
+    const alVolver = () => setRuta(rutaActualNavegador())
     window.addEventListener('popstate', alVolver)
     return () => window.removeEventListener('popstate', alVolver)
   }, [])
 
   const ir = useCallback((destino: string) => {
     const limpia = destino.startsWith('/') ? destino : `/${destino}`
-    if (window.location.pathname !== limpia) {
+    if (rutaActualNavegador() !== limpia) {
       window.history.pushState(null, '', limpia)
     }
     setRuta(limpia)
   }, [])
 
-  const { notificarSesionVencida, notificarSinAcceso } = useCereipoEmbed({
+  const { embebida, notificarSesionVencida, notificarSinAcceso } = useCereipoEmbed({
     app: 'codigos',
     ruta,
+    capacidades: ['navegar'],
     listo: identidad.tipo !== 'cargando',
     alIrA: (nuevaRuta) => {
       ir(nuevaRuta)
@@ -39,8 +45,19 @@ function ContenidoApp() {
   })
 
   useEffect(() => {
+    configurarManejadorAuth((status, codigo) => {
+      if (status === 401 || codigo === 'sin-sesion' || codigo === 'sesion-vencida') {
+        notificarSesionVencida()
+      } else if (status === 403 && codigo === 'sin-acceso') {
+        notificarSinAcceso()
+      }
+    })
+    return () => configurarManejadorAuth(null)
+  }, [notificarSesionVencida, notificarSinAcceso])
+
+  useEffect(() => {
     if (identidad.tipo !== 'sin-identidad') return
-    if (identidad.codigo === 'sin-acceso') notificarSinAcceso()
+    if (identidad.status === 403 || identidad.codigo === 'sin-acceso') notificarSinAcceso()
     else notificarSesionVencida()
   }, [identidad, notificarSesionVencida, notificarSinAcceso])
 
@@ -75,7 +92,7 @@ function ContenidoApp() {
   }
 
   const vista = resolverRuta(ruta)
-  const enIframe = window.self !== window.top
+  const enIframe = embebida
 
   return (
     <main className="shell-interno">

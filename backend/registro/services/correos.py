@@ -14,8 +14,16 @@ from catalogos.services import obtener_info_notificacion
 log = logging.getLogger(__name__)
 
 
-def enviar_correo_nuevo_codigo(*, codigo: str, motivo: str, actor_nombre: str) -> str | None:
-    destino, habilitado = obtener_info_notificacion()
+def enviar_correo_nuevo_codigo(
+    *,
+    codigo: str,
+    motivo: str,
+    actor_nombre: str,
+    destino: str | None = None,
+    habilitado: bool | None = None,
+) -> str | None:
+    if destino is None or habilitado is None:
+        destino, habilitado = obtener_info_notificacion()
     if not habilitado or not destino:
         return None
     fecha_txt = localtime(now()).strftime("%d/%m/%Y %H:%M")
@@ -47,6 +55,6 @@ def enviar_correo_nuevo_codigo(*, codigo: str, motivo: str, actor_nombre: str) -
     except BadHeaderError:
         log.exception("BadHeaderError enviando correo codigo=%s", codigo)
         return "El código se guardó, pero el encabezado del correo es inválido."
-    except Exception as error:
+    except Exception:
         log.exception("Error enviando correo codigo=%s", codigo)
-        return f"El código se guardó, pero no se pudo enviar el correo: {error}"
+        return "El código se guardó, pero no se pudo enviar el correo de notificación."

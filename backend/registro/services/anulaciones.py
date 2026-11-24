@@ -90,7 +90,8 @@ def anular_codigo_directo(
     reg = CodigoRegistro.objects.select_for_update().filter(pk=codigo_id).first()
     if reg is None:
         raise ErrorNegocio("Código no encontrado.", "no-encontrado", 404)
-    if not es_aprobador and reg.creado_por_persona_id != str(actor_persona_id or ""):
+    actor_id = str(actor_persona_id or "")
+    if not es_aprobador and (not actor_id or reg.creado_por_persona_id != actor_id):
         raise ErrorNegocio("No tienes permiso para anular este código.", "sin-acceso", 403)
     if reg.estado == CodigoRegistro.Estado.ANULADO:
         raise ErrorNegocio("El código ya se encuentra anulado.", "ya-anulado", 400)
@@ -121,12 +122,19 @@ def anular_lote_servicio(
     refs = [str(r).strip() for r in (referencias_externas or []) if str(r).strip()]
     if not cods and not refs:
         raise ErrorNegocio("Indica códigos o referencias externas a anular.", "datos-invalidos", 400)
+    if cods and refs:
+        raise ErrorNegocio("Envía «codigos» o «referencias_externas», no ambos.", "datos-invalidos", 400)
 
-    qs = CodigoRegistro.objects.select_for_update()
+    qs = CodigoRegistro.objects.select_for_update().order_by("id")
     qs = qs.filter(codigo__in=cods) if cods else qs.filter(referencia_externa__in=refs)
     encontrados = list(qs)
     if not encontrados:
         raise ErrorNegocio("No se encontraron códigos para anular.", "no-encontrado", 404)
+    if cods:
+        hallados = {r.codigo for r in encontrados}
+        faltantes = sorted(set(cods) - hallados)
+        if faltantes:
+            raise ErrorNegocio(f"Códigos no encontrados: {', '.join(faltantes)}", "no-encontrado", 404)
 
     salida = []
     for reg in encontrados:
@@ -209,26 +217,40 @@ def resolver_solicitud_anulacion(
     if accion not in ("aprobar", "rechazar"):
         raise ErrorNegocio("La acción debe ser «aprobar» o «rechazar».", "datos-invalidos", 400)
 
-    solicitud = (
-        SolicitudAnulacion.objects.select_for_update()
-        .select_related("codigo_registro")
-        .filter(pk=solicitud_id)
-        .first()
-    )
-    if solicitud is None:
+    solicitud_ref = SolicitudAnulacion.objects.filter(pk=solicitud_id).values("codigo_registro_id").first()
+    if solicitud_ref is None:
         raise ErrorNegocio("Solicitud de anulación no encontrada.", "no-encontrado", 404)
+    # Bloquear primero CodigoRegistro y luego SolicitudAnulacion (mismo orden que anular_codigo_directo).
+    reg = CodigoRegistro.objects.select_for_update().get(pk=solicitud_ref["codigo_registro_id"])
+    solicitud = SolicitudAnulacion.objects.select_for_update().get(pk=solicitud_id)
     if solicitud.estado != SolicitudAnulacion.Estado.PENDIENTE:
         raise ErrorNegocio("Esta solicitud ya fue procesada.", "estado-invalido", 409)
 
     ahora = now()
     resolucion = texto_limpio(motivo_resolucion, 500)
     if accion == "aprobar":
-        _aplicar_anulacion(
-            solicitud.codigo_registro,
+        cambio = _aplicar_anulacion(
+            reg,
             motivo=solicitud.motivo,
             actor_persona_id=actor_persona_id,
             actor_nombre=actor_nombre,
         )
+        if not cambio:
+            solicitud.estado = SolicitudAnulacion.Estado.APROBADA
+            solicitud.resuelto_por_persona_id = str(actor_persona_id or "")[:64]
+            solicitud.resuelto_por_nombre = texto_limpio(actor_nombre, 200)
+            solicitud.motivo_resolucion = resolucion or "Cerrada (el código ya estaba anulado)."
+            solicitud.fecha_resolucion = ahora
+            solicitud.save(
+                update_fields=[
+                    "estado",
+                    "resuelto_por_persona_id",
+                    "resuelto_por_nombre",
+                    "motivo_resolucion",
+                    "fecha_resolucion",
+                ]
+            )
+            return solicitud
         solicitud.refresh_from_db()
         if resolucion:
             solicitud.motivo_resolucion = resolucion

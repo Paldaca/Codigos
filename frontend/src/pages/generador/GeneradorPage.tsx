@@ -8,6 +8,13 @@ import { registroApi, type ItemGenerar } from '../../services/registro'
 import type { CatalogosAgrupados } from '../../types/catalogos'
 import type { CodigoItem, PrevisualizacionItem } from '../../types/registro'
 
+function nuevaClaveIdempotencia(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `ui-${crypto.randomUUID()}`
+  }
+  return `ui-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
 function crearFilaVacia(catalogos: CatalogosAgrupados | null): ItemGenerar {
   return {
     anio: String(new Date().getFullYear()),
@@ -17,11 +24,12 @@ function crearFilaVacia(catalogos: CatalogosAgrupados | null): ItemGenerar {
     disciplina: catalogos?.disciplina[0]?.codigo ?? 'G',
     tipo_documento: catalogos?.tipo_documento[0]?.codigo ?? 'DOC',
     motivo: '',
+    clave_idempotencia: nuevaClaveIdempotencia(),
   }
 }
 
 export function GeneradorPage({ ir }: { ir: (ruta: string) => void }) {
-  const { configOrg } = useIdentidad()
+  const { configOrg, recargarConfigOrg } = useIdentidad()
   const [catalogos, setCatalogos] = useState<CatalogosAgrupados | null>(null)
   const [modoLote, setModoLote] = useState(false)
   const [filas, setFilas] = useState<ItemGenerar[]>([crearFilaVacia(null)])
@@ -32,19 +40,34 @@ export function GeneradorPage({ ir }: { ir: (ruta: string) => void }) {
   const [cargando, setCargando] = useState(false)
 
   useEffect(() => {
+    const ctrl = new AbortController()
     catalogosApi
-      .listarSegmentos()
+      .listarSegmentos(false, ctrl.signal)
       .then((r) => {
         setCatalogos(r.segmentos)
         setFilas([crearFilaVacia(r.segmentos)])
       })
-      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+      .catch((e: unknown) => {
+        if (e instanceof Error && e.name === 'AbortError') return
+        setError(e instanceof Error ? e.message : String(e))
+      })
+    return () => ctrl.abort()
   }, [])
 
   function actualizarFila(idx: number, campo: keyof ItemGenerar, valor: string) {
     setPreviews(null)
     setGenerados(null)
-    setFilas((prev) => prev.map((f, i) => (i === idx ? { ...f, [campo]: valor } : f)))
+    setFilas((prev) =>
+      prev.map((f, i) =>
+        i === idx
+          ? {
+              ...f,
+              [campo]: valor,
+              clave_idempotencia: campo === 'motivo' ? f.clave_idempotencia : nuevaClaveIdempotencia(),
+            }
+          : f,
+      ),
+    )
   }
 
   function agregarFila() {
@@ -76,15 +99,14 @@ export function GeneradorPage({ ir }: { ir: (ruta: string) => void }) {
     setCargando(true)
     setError('')
     try {
-      const loteConIdempotencia = filas.map((f, i) => ({
-        ...f,
-        clave_idempotencia: f.clave_idempotencia || `ui-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 8)}`,
-      }))
-      const r = await registroApi.generar(loteConIdempotencia)
+      const r = await registroApi.generar(filas)
       setGenerados(r.resultados)
       setAdvertencia(r.advertencia_correo)
       setPreviews(null)
       setFilas([crearFilaVacia(catalogos)])
+      if (!configOrg?.bloqueada_por_codigos) {
+        void recargarConfigOrg()
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
     } finally {
@@ -92,7 +114,8 @@ export function GeneradorPage({ ir }: { ir: (ruta: string) => void }) {
     }
   }
 
-  const anios = Array.from({ length: 10 }, (_, i) => String(2020 + i))
+  const anioTope = Math.max(2029, new Date().getFullYear() + 2)
+  const anios = Array.from({ length: anioTope - 2015 + 1 }, (_, i) => String(2015 + i))
 
   return (
     <section className="pagina">

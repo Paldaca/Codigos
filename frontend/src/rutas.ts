@@ -1,7 +1,8 @@
 export type RutaApp = 'inicio' | 'generar' | 'registro' | 'anulaciones' | 'catalogos' | 'administracion'
 
-export function resolverRuta(pathname: string): RutaApp {
-  const limpia = pathname.replace(/\/+$/, '') || '/'
+export function resolverRuta(rutaCompleta: string): RutaApp {
+  const soloRuta = rutaCompleta.split('?')[0].split('#')[0]
+  const limpia = soloRuta.replace(/\/+$/, '') || '/'
   if (limpia === '/generar') return 'generar'
   if (limpia === '/registro') return 'registro'
   if (limpia === '/anulaciones') return 'anulaciones'

@@ -8,7 +8,7 @@ import type { IdentidadYo, SaludEstado } from '../types/identidad'
 type EstadoIdentidad =
   | { tipo: 'cargando' }
   | { tipo: 'listo'; yo: IdentidadYo }
-  | { tipo: 'sin-identidad'; codigo: string; mensaje: string }
+  | { tipo: 'sin-identidad'; status: number; codigo: string; mensaje: string }
   | { tipo: 'error'; mensaje: string }
 
 type ContextoValor = {
@@ -40,13 +40,22 @@ export function IdentidadProvider({ children }: { children: ReactNode }) {
     integracionApi
       .salud()
       .then((s) => vigente && setSalud(s))
-      .catch(() => {})
+      .catch((err: unknown) => {
+        if (!vigente) return
+        if (err instanceof ErrorApi && err.status === 503 && err.datos && 'estado' in err.datos) {
+          setSalud(err.datos as SaludEstado)
+        }
+      })
 
     integracionApi
       .yo()
       .then(async (yo) => {
         if (!vigente) return
         setIdentidad({ tipo: 'listo', yo })
+        const puedeLeerCatalogos = ['codigos:registro:ver', 'codigos:codigos:generar', 'codigos:catalogos:administrar'].some((p) =>
+          yo.permisos.includes(p),
+        )
+        if (!puedeLeerCatalogos) return
         try {
           const cfg = await catalogosApi.obtenerConfigOrg()
           if (vigente) setConfigOrg(cfg)
@@ -57,7 +66,7 @@ export function IdentidadProvider({ children }: { children: ReactNode }) {
       .catch((err: unknown) => {
         if (!vigente) return
         if (err instanceof ErrorApi && (err.status === 401 || err.status === 403)) {
-          setIdentidad({ tipo: 'sin-identidad', codigo: err.codigo, mensaje: err.message })
+          setIdentidad({ tipo: 'sin-identidad', status: err.status, codigo: err.codigo, mensaje: err.message })
         } else {
           setIdentidad({ tipo: 'error', mensaje: err instanceof Error ? err.message : String(err) })
         }

@@ -5,6 +5,7 @@ from .organizacion import (
     obtener_configuracion,
     obtener_info_notificacion,
     obtener_sigla_obligatoria,
+    obtener_y_bloquear_sigla,
 )
 from .publicacion import publicar_catalogos_activos
 from .segmentos import (
@@ -27,6 +28,7 @@ __all__ = [
     "obtener_configuracion",
     "obtener_info_notificacion",
     "obtener_sigla_obligatoria",
+    "obtener_y_bloquear_sigla",
     "publicar_catalogos_activos",
     "sembrar_catalogos_estandar",
     "validar_y_resolver_segmentos",

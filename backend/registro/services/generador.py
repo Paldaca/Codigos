@@ -10,7 +10,9 @@ from django.utils.timezone import now
 
 from catalogos.services import (
     marcar_sigla_bloqueada,
+    obtener_info_notificacion,
     obtener_sigla_obligatoria,
+    obtener_y_bloquear_sigla,
     validar_y_resolver_segmentos,
 )
 from cereipo_sso.historial import calcular_cambios, capturar_estado, registrar_cambio
@@ -176,6 +178,7 @@ def _serializar_resultado(reg: CodigoRegistro, *, repetido: bool = False) -> dic
         "consecutivo": reg.consecutivo,
         "estado": reg.estado,
         "origen": reg.origen,
+        "motivo": reg.motivo,
         "repetido": repetido,
     }
 
@@ -205,7 +208,7 @@ def reservar_o_generar_lote(
     if not org_id or org_id == "*":
         raise ErrorNegocio("No hay una organización activa.", "sin-organizacion", 400)
 
-    sigla = obtener_sigla_obligatoria()
+    sigla = obtener_y_bloquear_sigla()
     normalizados = _validar_items(items, motivo_obligatorio=True)
 
     claves = [i.clave_idempotencia for i in normalizados if i.clave_idempotencia]
@@ -215,11 +218,12 @@ def reservar_o_generar_lote(
         for reg in CodigoRegistro.objects.select_for_update().filter(
             origen=origen,
             clave_idempotencia__in=claves,
-        ):
+        ).order_by("id"):
             previos_por_clave[reg.clave_idempotencia] = reg
 
     resultados: dict[int, dict] = {}
     grupos_nuevos: dict[tuple[str, ...], list[_ItemNormalizado]] = defaultdict(list)
+    ahora = now()
 
     for item in normalizados:
         previo = previos_por_clave.get(item.clave_idempotencia) if item.clave_idempotencia else None
@@ -238,12 +242,26 @@ def reservar_o_generar_lote(
                     "conflicto-idempotencia",
                     409,
                 )
-            resultados[item.indice] = _serializar_resultado(previo, repetido=True)
+            if confirmar_inmediato and previo.estado == CodigoRegistro.Estado.RESERVADO:
+                antes = capturar_estado(previo, CAMPOS_HISTORIAL)
+                previo.estado = CodigoRegistro.Estado.CONFIRMADO
+                previo.fecha_confirmacion = ahora
+                previo.save(update_fields=["estado", "fecha_confirmacion"])
+                registrar_cambio(
+                    objeto=previo,
+                    accion="confirmado",
+                    actor_persona_id=actor_persona_id,
+                    actor_nombre=actor_nombre,
+                    cambios=calcular_cambios(antes, capturar_estado(previo, CAMPOS_HISTORIAL)),
+                    motivo=item.motivo,
+                )
+                resultados[item.indice] = _serializar_resultado(previo, repetido=False)
+            else:
+                resultados[item.indice] = _serializar_resultado(previo, repetido=True)
         else:
             grupos_nuevos[item.llave_combinacion].append(item)
 
     estado_inicial = CodigoRegistro.Estado.CONFIRMADO if confirmar_inmediato else CodigoRegistro.Estado.RESERVADO
-    ahora = now()
     nuevos_para_correo: list[CodigoRegistro] = []
 
     # Orden determinista de llaves evita deadlocks entre transacciones concurrentes.
@@ -301,19 +319,26 @@ def reservar_o_generar_lote(
     if nuevos_para_correo:
         marcar_sigla_bloqueada()
 
-    advertencia_correo = None
-    if confirmar_inmediato and origen == CodigoRegistro.Origen.MANUAL and len(nuevos_para_correo) == 1:
-        reg_correo = nuevos_para_correo[0]
-        advertencia_correo = enviar_correo_nuevo_codigo(
-            codigo=reg_correo.codigo,
-            motivo=reg_correo.motivo,
-            actor_nombre=actor_nombre,
-        )
+    if confirmar_inmediato and origen == CodigoRegistro.Origen.MANUAL and nuevos_para_correo:
+        destino, habilitado = obtener_info_notificacion()
+        if habilitado and destino:
+            for reg_correo in nuevos_para_correo:
+                cod_txt = reg_correo.codigo
+                mot_txt = reg_correo.motivo
+                transaction.on_commit(
+                    lambda c=cod_txt, m=mot_txt, d=destino, h=habilitado: enviar_correo_nuevo_codigo(
+                        codigo=c,
+                        motivo=m,
+                        actor_nombre=actor_nombre,
+                        destino=d,
+                        habilitado=h,
+                    )
+                )
 
     lista_ordenada = [resultados[i] for i in range(len(normalizados))]
     return {
         "resultados": lista_ordenada,
-        "advertencia_correo": advertencia_correo,
+        "advertencia_correo": None,
     }
 
 
@@ -329,12 +354,14 @@ def confirmar_lote(
     claves = [str(k).strip() for k in (claves_idempotencia or []) if str(k).strip()]
     if not cods and not claves:
         raise ErrorNegocio("Indica códigos o claves de idempotencia a confirmar.", "datos-invalidos", 400)
+    if cods and claves:
+        raise ErrorNegocio("Envía «codigos» o «claves_idempotencia», no ambos.", "datos-invalidos", 400)
 
-    qs = CodigoRegistro.objects.select_for_update()
+    qs = CodigoRegistro.objects.select_for_update().order_by("id")
     if cods:
         qs = qs.filter(codigo__in=cods)
     else:
-        qs = qs.filter(clave_idempotencia__in=claves)
+        qs = qs.filter(origen=CodigoRegistro.Origen.API, clave_idempotencia__in=claves)
 
     encontrados = list(qs)
     esperados = set(cods or claves)
