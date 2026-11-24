@@ -16,7 +16,7 @@ from urllib.parse import unquote, urlsplit
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.db.models import Count, Max
-from django.utils.timezone import is_naive, make_aware
+from django.utils.timezone import is_naive, make_aware, now as timezone_now
 
 from catalogos.services import (
     asegurar_segmentos_migrados,
@@ -144,8 +144,8 @@ def migrar_datos_por_empresa(
                     creador_id, creador_nom = _usuario_info(c.get("usuario_id"))
                     anul_id, anul_nom = _usuario_info(c.get("usuario_anulacion_id"))
                     anulado = bool(c.get("anulado"))
-                    fecha_crea = _fecha_con_tz(c.get("fecha_creacion"))
-                    fecha_anul = _fecha_con_tz(c.get("fecha_anulacion"))
+                    fecha_crea = _fecha_con_tz(c.get("fecha_creacion")) or timezone_now()
+                    fecha_anul = _fecha_con_tz(c.get("fecha_anulacion")) or (fecha_crea if anulado else None)
                     reg = CodigoRegistro.objects.create(
                         sigla=sigla,
                         anio=str(c["anio"]).strip(),
@@ -185,19 +185,37 @@ def migrar_datos_por_empresa(
             for legacy_id, reg in mapa_codigo_obj.items():
                 for s in solicitudes_por_codigo.get(legacy_id, []):
                     sol_id, sol_nom = _usuario_info(s.get("solicitante_id"))
+                    sol_id_final = sol_id or "legacy:0"
+                    sol_nom_final = sol_nom or "Usuario legado"
+                    motivo_sol = s.get("motivo") or "Migrada desde PALDACA"
+                    fecha_sol = _fecha_con_tz(s.get("fecha_solicitud")) or reg.fecha_creacion
                     procesada = bool(s.get("procesada"))
-                    estado_sol = (
-                        SolicitudAnulacion.Estado.APROBADA
-                        if procesada and reg.estado == CodigoRegistro.Estado.ANULADO
-                        else (SolicitudAnulacion.Estado.RECHAZADA if procesada else SolicitudAnulacion.Estado.PENDIENTE)
-                    )
+                    if reg.estado == CodigoRegistro.Estado.ANULADO:
+                        estado_sol = SolicitudAnulacion.Estado.APROBADA
+                    elif procesada:
+                        estado_sol = SolicitudAnulacion.Estado.RECHAZADA
+                    else:
+                        estado_sol = SolicitudAnulacion.Estado.PENDIENTE
+
+                    if estado_sol == SolicitudAnulacion.Estado.PENDIENTE and SolicitudAnulacion.objects.filter(
+                        codigo_registro=reg, estado=SolicitudAnulacion.Estado.PENDIENTE
+                    ).exists():
+                        continue
+                    if SolicitudAnulacion.objects.filter(
+                        codigo_registro=reg,
+                        solicitante_persona_id=sol_id_final,
+                        motivo=motivo_sol,
+                        fecha_solicitud=fecha_sol,
+                    ).exists():
+                        continue
+
                     SolicitudAnulacion.objects.create(
                         codigo_registro=reg,
-                        solicitante_persona_id=sol_id or "legacy:0",
-                        solicitante_nombre=sol_nom or "Usuario legado",
-                        motivo=s.get("motivo") or "Migrada desde PALDACA",
+                        solicitante_persona_id=sol_id_final,
+                        solicitante_nombre=sol_nom_final,
+                        motivo=motivo_sol,
                         estado=estado_sol,
-                        fecha_solicitud=_fecha_con_tz(s.get("fecha_solicitud")),
+                        fecha_solicitud=fecha_sol,
                     )
                     sols_migradas += 1
 

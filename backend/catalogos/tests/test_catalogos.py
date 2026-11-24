@@ -71,3 +71,13 @@ class CatalogosTests(TestCase):
             )
             self.assertEqual(seg["disciplina"], "C")
             self.assertEqual(seg["disciplina_shell"], "CIV")
+
+    def test_on_commit_publica_snapshot_no_vacio_con_rls(self):
+        with mock.patch("integracion.services.maestros.sincronizar_maestro", return_value={"creados": 1}) as m_sync:
+            with self.captureOnCommitCallbacks(execute=True):
+                with con_organizacion("100"):
+                    guardar_configuracion(sigla="PAL", actor_persona_id="10", actor_nombre="Ana")
+            m_sync.assert_called_once()
+            _, kwargs = m_sync.call_args
+            registros = kwargs["registros"]
+            self.assertTrue(any(r["clave"] == "organizacion:config" and r["datos"]["sigla"] == "PAL" for r in registros))

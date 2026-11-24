@@ -10,7 +10,7 @@ from core.exceptions import ErrorNegocio
 from core.validators import normalizar_codigo_segmento, validar_anio
 
 from catalogos.models import CatalogoSegmento
-from .publicacion import publicar_catalogos_activos
+from .publicacion import construir_snapshot_catalogos, publicar_snapshot_catalogos
 from .semillas import (
     DEPARTAMENTOS_ESTANDAR,
     DISCIPLINAS_ESTANDAR,
@@ -99,7 +99,8 @@ def crear_o_actualizar_segmento(
         cambios=calcular_cambios(antes or {}, despues),
         motivo=motivo,
     )
-    transaction.on_commit(lambda: publicar_catalogos_activos(org_id))
+    snapshot = construir_snapshot_catalogos(org_id)
+    transaction.on_commit(lambda: publicar_snapshot_catalogos(org_id, snapshot))
     return seg
 
 
@@ -140,7 +141,8 @@ def sembrar_catalogos_estandar(*, actor_persona_id: str = "", actor_nombre: str 
 
     if por_crear:
         CatalogoSegmento.objects.bulk_create(por_crear)
-        transaction.on_commit(lambda: publicar_catalogos_activos(org_id))
+        snapshot = construir_snapshot_catalogos(org_id)
+        transaction.on_commit(lambda: publicar_snapshot_catalogos(org_id, snapshot))
 
     return {"creados": len(por_crear), "total": len(existentes)}
 

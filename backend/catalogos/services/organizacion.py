@@ -10,7 +10,7 @@ from core.exceptions import ErrorNegocio
 from core.validators import validar_sigla_organizacion
 
 from catalogos.models import ConfiguracionOrganizacion
-from .publicacion import publicar_catalogos_activos
+from .publicacion import construir_snapshot_catalogos, publicar_snapshot_catalogos
 
 
 def obtener_configuracion() -> ConfiguracionOrganizacion | None:
@@ -83,7 +83,8 @@ def guardar_configuracion(
         cambios=calcular_cambios(antes or {}, despues),
         motivo=motivo,
     )
-    transaction.on_commit(lambda: publicar_catalogos_activos(org_id))
+    snapshot = construir_snapshot_catalogos(org_id)
+    transaction.on_commit(lambda: publicar_snapshot_catalogos(org_id, snapshot))
     return config
 
 
@@ -98,12 +99,14 @@ def configurar_migracion_organizacion(
     correo_notificacion: str,
     bloquear_sigla: bool,
 ) -> None:
+    existente = ConfiguracionOrganizacion.objects.filter(organizacion_id=organizacion_id).first()
+    bloqueada = (existente.bloqueada_por_codigos if existente is not None else False) or bloquear_sigla
     ConfiguracionOrganizacion.objects.update_or_create(
         organizacion_id=organizacion_id,
         defaults={
             "sigla": sigla,
             "correo_notificacion": correo_notificacion,
             "notificar_por_correo": bool(correo_notificacion),
-            "bloqueada_por_codigos": bloquear_sigla,
+            "bloqueada_por_codigos": bloqueada,
         },
     )

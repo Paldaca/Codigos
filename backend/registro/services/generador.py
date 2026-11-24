@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.utils.timezone import now
 
 from catalogos.services import (
@@ -180,6 +180,16 @@ def _serializar_resultado(reg: CodigoRegistro, *, repetido: bool = False) -> dic
     }
 
 
+def _adquirir_bloqueos_idempotencia(org_id: str, origen: str, claves: list[str]) -> None:
+    """Serializa peticiones concurrentes con la misma clave de idempotencia nueva en PostgreSQL."""
+    if connection.vendor != "postgresql" or not claves:
+        return
+    with connection.cursor() as cursor:
+        for clave in sorted(set(claves)):
+            llave_texto = f"codigos:idemp:{org_id}:{origen}:{clave}"
+            cursor.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", [llave_texto])
+
+
 @transaction.atomic
 def reservar_o_generar_lote(
     *,
@@ -199,6 +209,7 @@ def reservar_o_generar_lote(
     normalizados = _validar_items(items, motivo_obligatorio=True)
 
     claves = [i.clave_idempotencia for i in normalizados if i.clave_idempotencia]
+    _adquirir_bloqueos_idempotencia(org_id, origen, claves)
     previos_por_clave: dict[str, CodigoRegistro] = {}
     if claves:
         for reg in CodigoRegistro.objects.select_for_update().filter(

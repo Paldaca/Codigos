@@ -5,6 +5,7 @@ from __future__ import annotations
 from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.cache import never_cache
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET
 
 from cereipo_sso.decoradores import requiere_identidad
@@ -30,6 +31,7 @@ def salud(request):
 
 
 @never_cache
+@ensure_csrf_cookie
 @require_GET
 @requiere_identidad
 def yo(request):

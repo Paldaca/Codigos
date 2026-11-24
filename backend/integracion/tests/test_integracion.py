@@ -30,3 +30,30 @@ class IntegracionTests(TestCase):
         self.assertIn("generar-codigos", [s["codigo"] for s in m["servicios"]])
         self.assertEqual(m["maestros_propios"], ["codigos.catalogos"])
         self.assertEqual(manifiesto()["codigo"], "codigos")
+
+    def test_yo_siembra_cookie_csrf_para_spa(self):
+        from django.core.cache import cache
+        from django.test import override_settings
+        from cereipo_sso.pruebas import payload_de_ejemplo, shell_simulado
+
+        payload = payload_de_ejemplo(
+            organizacion={"id": "100", "codigo": "pal", "nombre": "Paldaca", "zona_horaria": "UTC"},
+            aplicacion={
+                "codigo": "codigos",
+                "rol": "administrador",
+                "permisos": ["codigos:inicio:ver"],
+                "disciplinas": "*",
+                "areas": [],
+                "roles": {"administrador": {"permisos": ["codigos:inicio:ver"], "alcance_disciplina": "todas"}},
+            },
+            proyectos=[],
+        )
+        memoria = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+        with override_settings(CEREIPO_SSO_ACTIVO=True, CACHES=memoria):
+            cache.clear()
+            with shell_simulado(payload):
+                self.client.cookies["cereipo_shell_sesion"] = "s100"
+                r = self.client.get("/api/yo/")
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("cereipo_codigos_csrf", r.cookies)
+        self.assertTrue(r.cookies["cereipo_codigos_csrf"].value)

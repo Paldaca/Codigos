@@ -4,10 +4,9 @@
 FROM node:22-alpine AS web
 WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json* frontend/.npmrc ./
-ARG CEREIPO_KIT_TOKEN=""
 RUN --mount=type=secret,id=kit_token \
     --mount=type=secret,id=CEREIPO_KIT_TOKEN \
-    TOKEN="$(cat /run/secrets/kit_token 2>/dev/null || cat /run/secrets/CEREIPO_KIT_TOKEN 2>/dev/null || printf '%s' "$CEREIPO_KIT_TOKEN")" \
+    TOKEN="$(cat /run/secrets/kit_token 2>/dev/null || cat /run/secrets/CEREIPO_KIT_TOKEN 2>/dev/null || true)" \
  && if [ -n "$TOKEN" ]; then printf '//npm.pkg.github.com/:_authToken=%s\n' "$TOKEN" >> ~/.npmrc; fi \
  && if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi \
  && rm -f ~/.npmrc
@@ -26,8 +25,9 @@ RUN useradd --system --uid 10001 --home-dir /app --shell /usr/sbin/nologin cerei
 
 COPY requirements.txt ./
 RUN --mount=type=secret,id=kit_token \
+    --mount=type=secret,id=CEREIPO_KIT_TOKEN \
     apt-get update && apt-get install -y --no-install-recommends git \
- && TOKEN="$(cat /run/secrets/kit_token 2>/dev/null || true)" \
+ && TOKEN="$(cat /run/secrets/kit_token 2>/dev/null || cat /run/secrets/CEREIPO_KIT_TOKEN 2>/dev/null || true)" \
  && if [ -n "$TOKEN" ]; then git config --global url."https://x-access-token:${TOKEN}@github.com/Paldaca/Cereipo-Kit".insteadOf "https://github.com/Paldaca/Cereipo-Kit"; fi \
  && pip install -r requirements.txt \
  && rm -f /root/.gitconfig \

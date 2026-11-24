@@ -252,6 +252,29 @@ class GeneradorYAnulacionesTests(TestCase):
             )
             self.assertEqual(sig["resultados"][0]["codigo"], "PAL-25-14-A-IN-C-PLA-003")
 
+    def test_migracion_mysql_idempotente_y_fechas_nulas(self):
+        datos = {
+            "empresas": [{"id": 1, "sigla": "PAL", "nombre": "Paldaca", "correo_notificacion": ""}],
+            "codigos": [
+                {
+                    "id": 10, "empresa_id": 1, "anio": "2025", "numero_proyecto": "14",
+                    "subproyecto": "A", "departamento": "IN", "disciplina": "C",
+                    "tipo_documento": "PLA", "consecutivo": 1, "codigo": "PAL-25-14-A-IN-C-PLA-001",
+                    "motivo": "Histórico", "fecha_creacion": None,
+                    "usuario_id": 5, "anulado": 0, "usuario_anulacion_id": None, "fecha_anulacion": None,
+                },
+            ],
+            "solicitudes": [
+                {"id": 1, "codigo_id": 10, "solicitante_id": 5, "motivo": "Error", "fecha_solicitud": None, "procesada": 0},
+            ],
+        }
+        r1 = migrar_datos_por_empresa(datos=datos, mapa_empresas_org={"PAL": "org-pal-idem"})
+        r2 = migrar_datos_por_empresa(datos=datos, mapa_empresas_org={"PAL": "org-pal-idem"})
+        self.assertEqual(r1["PAL"]["nuevos_codigos"], 1)
+        self.assertEqual(r1["PAL"]["solicitudes_migradas"], 1)
+        self.assertEqual(r2["PAL"]["nuevos_codigos"], 0)
+        self.assertEqual(r2["PAL"]["solicitudes_migradas"], 0)
+
 
 class ConcurrenciaContadorTests(TransactionTestCase):
     def setUp(self):
@@ -294,3 +317,39 @@ class ConcurrenciaContadorTests(TransactionTestCase):
             sorted(asignados),
             [f"CONC-26-14-A-IN-C-PLA-{n:03d}" for n in range(1, 7)],
         )
+
+    def test_idempotencia_concurrente_sin_duplicados_ni_error_500(self):
+        errores: list[Exception] = []
+        resultados: list[tuple[str, bool]] = []
+        candado = threading.Lock()
+        barrera = threading.Barrier(4)
+
+        def trabajador(idx: int):
+            try:
+                barrera.wait(timeout=5)
+                with con_organizacion("300"):
+                    res = reservar_o_generar_lote(
+                        items=[_item_base(motivo="Reintento paralelo", clave_idempotencia="clave-unica-race")],
+                        actor_persona_id=str(idx),
+                        actor_nombre=f"User {idx}",
+                    )
+                    r0 = res["resultados"][0]
+                    with candado:
+                        resultados.append((r0["codigo"], r0["repetido"]))
+            except Exception as exc:
+                with candado:
+                    errores.append(exc)
+            finally:
+                connections.close_all()
+
+        hilos = [threading.Thread(target=trabajador, args=(i,)) for i in range(4)]
+        for h in hilos:
+            h.start()
+        for h in hilos:
+            h.join()
+
+        self.assertEqual(errores, [])
+        self.assertEqual(len(resultados), 4)
+        self.assertEqual(len({c for c, _ in resultados}), 1)
+        self.assertEqual(sum(1 for _, rep in resultados if not rep), 1)
+        self.assertEqual(sum(1 for _, rep in resultados if rep), 3)
