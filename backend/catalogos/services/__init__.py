@@ -9,20 +9,29 @@ from .organizacion import (
 )
 from .publicacion import publicar_catalogos_activos
 from .segmentos import (
+    actualizacion_masiva_segmentos,
     asegurar_segmentos_migrados,
     catalogo_agrupado,
     crear_o_actualizar_segmento,
+    listar_historial_segmentos,
+    listar_instantaneas,
     listar_segmentos,
+    restablecer_plantilla_estandar,
+    restaurar_instantanea,
+    revertir_cambio_segmento,
     sembrar_catalogos_estandar,
     validar_y_resolver_segmentos,
 )
 
 __all__ = [
+    "actualizacion_masiva_segmentos",
     "asegurar_segmentos_migrados",
     "catalogo_agrupado",
     "configurar_migracion_organizacion",
     "crear_o_actualizar_segmento",
     "guardar_configuracion",
+    "listar_historial_segmentos",
+    "listar_instantaneas",
     "listar_segmentos",
     "marcar_sigla_bloqueada",
     "obtener_configuracion",
@@ -30,6 +39,9 @@ __all__ = [
     "obtener_sigla_obligatoria",
     "obtener_y_bloquear_sigla",
     "publicar_catalogos_activos",
+    "restablecer_plantilla_estandar",
+    "restaurar_instantanea",
+    "revertir_cambio_segmento",
     "sembrar_catalogos_estandar",
     "validar_y_resolver_segmentos",
 ]

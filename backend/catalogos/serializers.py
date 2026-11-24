@@ -24,3 +24,15 @@ class SegmentoActualizarSerializer(serializers.Serializer):
     orden = serializers.IntegerField(min_value=0, max_value=32000, required=False)
     activo = serializers.BooleanField(required=False)
     motivo = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class RestablecerPlantillaSerializer(serializers.Serializer):
+    tipo = serializers.CharField(max_length=20, required=False, allow_blank=True, default="")
+    desactivar_personalizados = serializers.BooleanField(required=False, default=True)
+    motivo = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class LoteSegmentosSerializer(serializers.Serializer):
+    tipo = serializers.CharField(max_length=20)
+    accion = serializers.ChoiceField(choices=["activar_todos", "desactivar_todos", "solo_general"])
+    motivo = serializers.CharField(required=False, allow_blank=True, default="")

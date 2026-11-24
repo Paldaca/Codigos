@@ -1,4 +1,4 @@
-"""Vistas REST de `catalogos` (sigla única de la organización y segmentos)."""
+"""Vistas REST de `catalogos` (sigla única de la organización, segmentos y reversión 5.2b)."""
 
 from __future__ import annotations
 
@@ -14,14 +14,22 @@ from integracion.permissions import TieneIdentidad, requiere_permiso, tiene_perm
 from .models import CatalogoSegmento
 from .serializers import (
     ConfiguracionOrganizacionSerializer,
+    LoteSegmentosSerializer,
+    RestablecerPlantillaSerializer,
     SegmentoActualizarSerializer,
     SegmentoCrearSerializer,
 )
 from .services import (
+    actualizacion_masiva_segmentos,
     catalogo_agrupado,
     crear_o_actualizar_segmento,
     guardar_configuracion,
+    listar_historial_segmentos,
+    listar_instantaneas,
     obtener_configuracion,
+    restablecer_plantilla_estandar,
+    restaurar_instantanea,
+    revertir_cambio_segmento,
     sembrar_catalogos_estandar,
 )
 
@@ -174,3 +182,73 @@ def sembrar_estandar(request):
         actor_nombre=request.cereipo.nombre,
     )
     return Response(resumen)
+
+
+@api_view(["POST"])
+@permission_classes([TieneIdentidad, requiere_permiso("codigos:catalogos:administrar")])
+def restablecer_plantilla(request):
+    serializer = RestablecerPlantillaSerializer(data=request.data)
+    if not serializer.is_valid():
+        raise ErrorNegocio("Datos inválidos.", "datos-invalidos", 400, extra={"detalles": serializer.errors})
+    d = serializer.validated_data
+    resumen = restablecer_plantilla_estandar(
+        tipo=d["tipo"],
+        desactivar_personalizados=d["desactivar_personalizados"],
+        actor_persona_id=request.cereipo.persona_id,
+        actor_nombre=request.cereipo.nombre,
+        motivo=d["motivo"],
+    )
+    return Response(resumen)
+
+
+@api_view(["POST"])
+@permission_classes([TieneIdentidad, requiere_permiso("codigos:catalogos:administrar")])
+def lote_segmentos(request):
+    serializer = LoteSegmentosSerializer(data=request.data)
+    if not serializer.is_valid():
+        raise ErrorNegocio("Datos inválidos.", "datos-invalidos", 400, extra={"detalles": serializer.errors})
+    d = serializer.validated_data
+    resumen = actualizacion_masiva_segmentos(
+        tipo=d["tipo"],
+        accion=d["accion"],
+        actor_persona_id=request.cereipo.persona_id,
+        actor_nombre=request.cereipo.nombre,
+        motivo=d["motivo"],
+    )
+    return Response(resumen)
+
+
+@api_view(["GET"])
+@permission_classes([TieneIdentidad, requiere_permiso("codigos:catalogos:administrar")])
+def historial_segmentos(request):
+    tipo = request.GET.get("tipo", "").strip()
+    resultados = listar_historial_segmentos(tipo=tipo)
+    return Response({"resultados": resultados})
+
+
+@api_view(["POST"])
+@permission_classes([TieneIdentidad, requiere_permiso("codigos:catalogos:administrar")])
+def revertir_segmento(request, historial_id: int):
+    res = revertir_cambio_segmento(
+        historial_id,
+        actor_persona_id=request.cereipo.persona_id,
+        actor_nombre=request.cereipo.nombre,
+    )
+    return Response(res)
+
+
+@api_view(["GET"])
+@permission_classes([TieneIdentidad, requiere_permiso("codigos:catalogos:administrar")])
+def instantaneas(request):
+    return Response({"resultados": listar_instantaneas()})
+
+
+@api_view(["POST"])
+@permission_classes([TieneIdentidad, requiere_permiso("codigos:catalogos:administrar")])
+def restaurar_instantanea_vista(request, instantanea_id: int):
+    res = restaurar_instantanea(
+        instantanea_id,
+        actor_persona_id=request.cereipo.persona_id,
+        actor_nombre=request.cereipo.nombre,
+    )
+    return Response(res)

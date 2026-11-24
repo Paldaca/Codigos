@@ -68,3 +68,22 @@ class CatalogoSegmento(ModeloDeOrganizacion):
 
     def __str__(self) -> str:
         return f"{self.tipo}: {self.codigo} · {self.nombre}"
+
+
+class InstantaneaCatalogo(ModeloDeOrganizacion):
+    """Punto de restauración del catálogo de segmentos para revertir cambios en bloque (tarea 5.2b)."""
+
+    descripcion = models.CharField("descripción", max_length=200)
+    tipo_alcance = models.CharField("tipo afectado", max_length=20, blank=True, default="")
+    datos = models.JSONField("estado de segmentos", default=list)
+    actor_persona_id = models.CharField("actor (persona_id)", max_length=64, blank=True)
+    actor_nombre = models.CharField("actor (nombre)", max_length=200, blank=True)
+    creado_en = models.DateTimeField("creado en", auto_now_add=True)
+
+    class Meta(ModeloDeOrganizacion.Meta):
+        verbose_name = "instantánea de catálogo"
+        verbose_name_plural = "instantáneas de catálogo"
+        ordering = ["-creado_en", "-id"]
+
+    def __str__(self) -> str:
+        return f"{self.descripcion} ({self.creado_en:%Y-%m-%d %H:%M})"

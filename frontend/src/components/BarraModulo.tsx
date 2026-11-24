@@ -19,7 +19,7 @@ export function BarraModulo({ vista, ir, alAbrirAyuda }: BarraModuloProps) {
     { id: 'generar', ruta: '/generar/', etiqueta: 'Generar código', icono: PlusCircle, visible: puede('codigos:codigos:generar') },
     { id: 'registro', ruta: '/registro/', etiqueta: 'Registro', icono: ListChecks, visible: puede('codigos:registro:ver') },
     { id: 'anulaciones', ruta: '/anulaciones/', etiqueta: 'Anulaciones', icono: Ban, visible: puede('codigos:codigos:anular') },
-    { id: 'catalogos', ruta: '/catalogos/', etiqueta: 'Catálogos', icono: SlidersHorizontal, visible: puede('codigos:catalogos:administrar') },
+    { id: 'catalogos', ruta: '/catalogos/', etiqueta: 'Esquema', icono: SlidersHorizontal, visible: puede('codigos:catalogos:administrar') },
     {
       id: 'administracion',
       ruta: '/administracion/',

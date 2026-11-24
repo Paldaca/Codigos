@@ -24,3 +24,12 @@ export type Segmento = {
 }
 
 export type CatalogosAgrupados = Record<TipoSegmento, Segmento[]>
+
+export type InstantaneaCatalogoItem = {
+  id: number
+  descripcion: string
+  tipo_alcance: string
+  total_segmentos: number
+  actor_nombre: string
+  creado_en: string
+}

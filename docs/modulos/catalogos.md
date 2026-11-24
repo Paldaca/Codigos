@@ -26,4 +26,10 @@
 - `GET /api/catalogos/organizacion/historial/`
 - `GET/POST /api/catalogos/segmentos/`
 - `PATCH /api/catalogos/segmentos/<int:segmento_id>/`
+- `GET /api/catalogos/segmentos/historial/`
+- `POST /api/catalogos/segmentos/lote/`
+- `POST /api/catalogos/segmentos/revertir/<int:historial_id>/`
 - `POST /api/catalogos/sembrar-estandar/`
+- `POST /api/catalogos/restablecer-plantilla/`
+- `GET /api/catalogos/instantaneas/`
+- `POST /api/catalogos/instantaneas/<int:instantanea_id>/restaurar/`

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ExternalLink, Shield } from 'lucide-react'
 import { obtenerOrigenShell } from '@cereipo/embed'
 import { BotonAyuda } from '../../components/BotonAyuda'
+import { ConfiguracionSiglaCard } from '../../components/ConfiguracionSiglaCard'
 import { InsigniaOrganizacion } from '../../components/InsigniaOrganizacion'
 import { useIdentidad } from '../../context/IdentidadContext'
 import { integracionApi } from '../../services/integracion'
@@ -50,21 +51,25 @@ export function PanelAdministracionPage({ alAbrirAyuda }: { alAbrirAyuda?: () =>
       <header className="cabecera-pagina rev" style={orden(0)}>
         <div>
           <div className="titulo-con-ayuda">
-            <h1>Administración de Códigos</h1>
+            <h1>Configuración del módulo Códigos</h1>
             <BotonAyuda
-              titulo="Integración con Cereipo Shell"
-              texto="Los roles, permisos y usuarios se administran de forma centralizada desde Cereipo Shell para toda la suite."
+              titulo="Configuración del módulo"
+              texto="Aquí puedes configurar la sigla inicial de tu organización, las notificaciones por correo y consultar los ámbitos y permisos integrados con Cereipo Shell."
               alAbrirGuiaCompleta={alAbrirAyuda}
             />
           </div>
-          <p className="tenue">Panel de integración, acceso y ámbitos locales de la organización.</p>
+          <p className="tenue">Sigla organizacional, notificaciones, integración y acceso de tu organización.</p>
         </div>
         <InsigniaOrganizacion alAbrirGuia={alAbrirAyuda} />
       </header>
 
       {error && <Aviso tono="error">{error}</Aviso>}
 
-      <div className="card tarjeta-generador rev" style={orden(1)}>
+      <div className="rev" style={orden(1)}>
+        <ConfiguracionSiglaCard alAbrirAyuda={alAbrirAyuda} />
+      </div>
+
+      <div className="card tarjeta-generador rev" style={orden(2)}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
           <span className="icon-badge">
             <Shield aria-hidden="true" />
@@ -88,7 +93,7 @@ export function PanelAdministracionPage({ alAbrirAyuda }: { alAbrirAyuda?: () =>
         </div>
       </div>
 
-      <div className="card tarjeta-generador rev" style={orden(2)}>
+      <div className="card tarjeta-generador rev" style={orden(3)}>
         <h2 className="panel-titulo" style={{ marginBottom: 8 }}>
           Ámbitos propios registrados
         </h2>

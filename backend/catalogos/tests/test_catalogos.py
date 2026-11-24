@@ -97,3 +97,75 @@ class CatalogosTests(TestCase):
                     self.assertEqual(cursor.fetchone()[0], 0)
             with self.assertRaises(Exception):
                 ConfiguracionOrganizacion.objects.create(organizacion_id="100", sigla="HACK")
+
+    def test_personalizar_restablecer_plantilla_y_revertir(self):
+        from django.db import connection
+        from catalogos.models import CatalogoSegmento, InstantaneaCatalogo
+
+        with con_organizacion("100"):
+            sembrar_catalogos_estandar()
+
+        with shell_simulado(_payload("100", ["codigos:catalogos:administrar", "codigos:registro:ver"])):
+            self.client.cookies[COOKIE] = "s1"
+
+            # 1. Agregar un segmento personalizado y editar uno estándar
+            r_add = self.client.post(
+                "/api/catalogos/segmentos/",
+                data=json.dumps({"tipo": "disciplina", "codigo": "S", "nombre": "Seguridad Industrial"}),
+                content_type="application/json",
+            )
+            self.assertEqual(r_add.status_code, 201)
+            with con_organizacion("100"):
+                seg_m = CatalogoSegmento.objects.get(tipo="disciplina", codigo="M")
+            r_edit = self.client.patch(
+                f"/api/catalogos/segmentos/{seg_m.pk}/",
+                data=json.dumps({"nombre": "Mecánica Pesada", "activo": False}),
+                content_type="application/json",
+            )
+            self.assertEqual(r_edit.status_code, 200)
+
+            # 2. Consultar historial y revertir la edición de Mecánica
+            r_hist = self.client.get("/api/catalogos/segmentos/historial/?tipo=disciplina")
+            self.assertEqual(r_hist.status_code, 200)
+            eventos = r_hist.json()["resultados"]
+            ev_edit = next(e for e in eventos if e["accion"] == "editado" and str(seg_m.pk) == e["objeto_id"])
+            r_rev = self.client.post(f"/api/catalogos/segmentos/revertir/{ev_edit['id']}/")
+            self.assertEqual(r_rev.status_code, 200)
+            self.assertEqual(r_rev.json()["segmento"]["nombre"], "Mecánica")
+            self.assertTrue(r_rev.json()["segmento"]["activo"])
+
+            # 3. Editar de nuevo y restablecer la plantilla estándar de disciplinas
+            self.client.patch(
+                f"/api/catalogos/segmentos/{seg_m.pk}/",
+                data=json.dumps({"nombre": "Mecánica Editada"}),
+                content_type="application/json",
+            )
+            r_reset = self.client.post(
+                "/api/catalogos/restablecer-plantilla/",
+                data=json.dumps({"tipo": "disciplina", "desactivar_personalizados": True}),
+                content_type="application/json",
+            )
+            self.assertEqual(r_reset.status_code, 200)
+            datos_reset = r_reset.json()
+            self.assertEqual(datos_reset["restaurados"], 1)
+            self.assertEqual(datos_reset["desactivados"], 1)
+
+            with con_organizacion("100"):
+                seg_custom = CatalogoSegmento.objects.get(tipo="disciplina", codigo="S")
+                self.assertFalse(seg_custom.activo)
+
+            # 4. Revertir el restablecimiento restaurando la instantánea previa
+            snap_id = datos_reset["instantanea_id"]
+            r_snap = self.client.post(f"/api/catalogos/instantaneas/{snap_id}/restaurar/")
+            self.assertEqual(r_snap.status_code, 200)
+            with con_organizacion("100"):
+                seg_custom.refresh_from_db()
+                seg_m.refresh_from_db()
+                self.assertTrue(seg_custom.activo)
+                self.assertEqual(seg_m.nombre, "Mecánica Editada")
+
+        # 5. Verificar RLS en InstantaneaCatalogo
+        with con_organizacion("200"):
+            with connection.cursor() as cursor:
+                cursor.execute(f'SELECT count(*) FROM "{InstantaneaCatalogo._meta.db_table}"')
+                self.assertEqual(cursor.fetchone()[0], 0)
