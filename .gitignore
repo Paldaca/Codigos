@@ -1,36 +1,20 @@
-# created by virtualenv automatically
-
-# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-
-# Environment variables
 .env
-key.env
 *.env
-!key.env.example
-!correo.env.example
-
-# SQLite database (si usas SQLite)
-db.sqlite3
-
-# Django stuff:
+!*.env.example
 *.log
 *.pot
-*.pyc
-media
-/staticfiles
-/migrations/
-# VSCode
+db.sqlite3
+backend/staticfiles/
+backend/spa/
+backend/archivos/
+frontend/node_modules/
+frontend/dist/
 .vscode/
-
-# PyCharm
 .idea/
-
-# MacOS
 .DS_Store
-
-# Virtual environment 
 venv/
 env/
+.import_linter_cache/

@@ -1,0 +1,61 @@
+[importlinter]
+root_packages =
+    core
+    integracion
+    catalogos
+    registro
+    api
+
+[importlinter:contract:core_independiente]
+name = core no importa ninguna app de negocio ni integracion (D-19)
+type = forbidden
+source_modules =
+    core
+forbidden_modules =
+    integracion
+    catalogos
+    registro
+    api
+
+[importlinter:contract:integracion_sin_negocio]
+name = integracion no importa catalogos, registro ni api (D-19)
+type = forbidden
+source_modules =
+    integracion
+forbidden_modules =
+    catalogos
+    registro
+    api
+
+[importlinter:contract:catalogos_sin_registro_ni_api]
+name = catalogos no importa registro ni api (D-19)
+type = forbidden
+source_modules =
+    catalogos
+forbidden_modules =
+    registro
+    api
+
+[importlinter:contract:registro_solo_servicios_catalogos]
+name = registro solo consume catalogos.services, nunca catalogos.models (D-19)
+type = forbidden
+allow_indirect_imports = true
+source_modules =
+    registro
+forbidden_modules =
+    catalogos.models
+    catalogos.views
+    catalogos.serializers
+    api
+
+[importlinter:contract:api_solo_capa_servicios]
+name = api solo consume services de catalogos y registro, nunca sus modelos (D-19)
+type = forbidden
+allow_indirect_imports = true
+source_modules =
+    api
+forbidden_modules =
+    catalogos.models
+    catalogos.views
+    registro.models
+    registro.views

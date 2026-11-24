@@ -1,0 +1,27 @@
+{% extends "core/base_email.html" %}
+{% block title %}Nuevo Código Generado{% endblock %}
+{% block content %}
+<h2 style="color: #5b21b6; text-align: center; margin-top: 0;">Nuevo Código Generado</h2>
+<p style="text-align: center; font-size: 15px;">
+    Se ha registrado un nuevo código en Cereipo · Códigos.
+</p>
+<table style="width: 100%; font-size: 15px; margin-top: 16px; border-collapse: collapse;">
+    <tr>
+        <td style="padding: 8px;"><strong>Responsable:</strong></td>
+        <td style="padding: 8px;">{{ usuario }}</td>
+    </tr>
+    <tr style="background-color: #f8fafc;">
+        <td style="padding: 8px;"><strong>Fecha:</strong></td>
+        <td style="padding: 8px;">{{ fecha }}</td>
+    </tr>
+    <tr>
+        <td style="padding: 8px;"><strong>Código:</strong></td>
+        <td style="padding: 8px; color: #5b21b6;"><strong>{{ codigo }}</strong></td>
+    </tr>
+    <tr style="background-color: #f8fafc;">
+        <td style="padding: 8px;"><strong>Motivo:</strong></td>
+        <td style="padding: 8px;">{{ motivo }}</td>
+    </tr>
+</table>
+{% endblock %}
+

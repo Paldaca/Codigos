@@ -1,197 +1,90 @@
-# BUSINESS_RULES.md — Repositorio Códigos
+# BUSINESS_RULES.md — Reglas de negocio de Códigos (Cereipo)
 
-> Solo reglas de negocio identificadas en el código. Cada regla indica dónde se implementa.  
-> Si una regla no está codificada de forma inequívoca, se marca como **parcial** o **inconsistencia**.
-
----
-
-## 1. Acceso al módulo
-
-### BR-01 — Acceso restringido al módulo `codigos`
-
-- **Regla:** Un usuario autenticado solo puede usar las vistas de negocio si tiene acceso al módulo con código `"codigos"` (o es superusuario con el módulo activo en catálogo).
-- **Implementación:**
-  - `documentos/decorators.py` → `requiere_modulo_paldaca` + `_usuario_tiene_acceso`
-  - `core/models.py` → `UsuarioPaldaca.tiene_acceso_modulo`
-  - Constante: `documentos/constants.py` → `MODULO_CODIGO = "codigos"`
-- **Efecto:** sin acceso → HTTP 403 `"No tienes acceso a este programa."`; sin login → redirect a SSO.
-
-### BR-02 — Autenticación solo vía SSO del Portal
-
-- **Regla:** Este repositorio no autentica usuarios localmente. Login, registro y logout redirigen a URLs SSO configuradas.
-- **Implementación:** `core/views.py` (`login_redirect`, `signup_redirect`, `signout`); `settings.LOGIN_URL = PALDACA_SSO_LOGIN_URL`.
-
-### BR-03 — Invalidación de sesión ante cambio de permisos
-
-- **Regla:** Si cambian rol, disciplina, perfil, activo o módulos asignados (hash `get_auth_revision`), la sesión se cierra cuando `PALDACA_STRICT_SESSION_CONSISTENCY` es verdadero (default).
-- **Implementación:** `core/middleware.py` → `PaldacaSessionMiddleware`; `core/models.py` → `get_auth_revision`.
+> Cada regla está respaldada por su implementación actual en `backend/` y `frontend/`.
 
 ---
 
-## 2. Generación de códigos
+## 1. Acceso, identidad y aislamiento
 
-### BR-04 — Estructura obligatoria del código
+### BR-01 — Autenticación vía Cereipo Shell y permisos granulares
 
-- **Regla:** El código se compone de segmentos fijos:
+- **Regla:** Códigos no mantiene tabla de usuarios ni login propio; toda petición de usuario pasa por `cereipo_sso.middleware.IdentidadCereipoMiddleware` y requiere el permiso de `codigos:*` correspondiente del manifiesto (`integracion/manifiesto.py`).
+- **Permisos declarados:** `codigos:inicio:ver`, `codigos:registro:ver`, `codigos:codigos:generar`, `codigos:codigos:anular`, `codigos:catalogos:administrar`, `codigos:administracion:gestionar`.
+- **Modo servicio (API entre apps):** `api.views.ServicioBaseView` hereda `integracion.permissions.ServicioAPIMixin` (`servicio_codigo = "generar-codigos"`), que valida HMAC-SHA256 emitido por la app consumidora autorizada y validado contra el Shell.
 
-  `{sigla_empresa}-{año_2_dígitos}-{numero_proyecto}-{subproyecto}-{departamento}-{disciplina}-{tipo_documento}-{consecutivo:03}`
+### BR-02 — Aislamiento multi-organización estricto con RLS
 
-- **Implementación:** `documentos/views.py` → `_calcular_codigo_y_consecutivo`.
-- **Origen de segmentos:** `documentos/forms.py` → `CodigoForm` (choices de años, proyectos, subproyectos, departamentos, disciplinas, tipos de documento) + `Empresa.sigla`.
-
-### BR-05 — Consecutivo por combinación de segmentos
-
-- **Regla:** El consecutivo es `N + 1`, donde `N` es el número de `CodigoGenerado` existentes con la misma combinación de: empresa, año completo, número de proyecto, subproyecto, departamento, disciplina y tipo de documento.
-- **Implementación:** `documentos/views.py` → `_calcular_codigo_y_consecutivo` (`filtro_existente.count() + 1`).
-- **Nota:** El modelo `ContadorCodigo` **no participa** en este cálculo en el código actual.
-
-### BR-06 — Unicidad del código
-
-- **Regla:** El campo `codigo` es único en base de datos.
-- **Implementación:** `documentos/models.py` → `CodigoGenerado.codigo` (`unique=True`); captura de `IntegrityError` en `generar_codigo`.
-
-### BR-07 — Motivo/asunto obligatorio al confirmar
-
-- **Regla:** No se puede persistir un código sin `motivo` no vacío.
-- **Implementación:** `documentos/views.py` (rama `paso == 'confirmar'`); campo `CodigoGenerado.motivo`.
-
-### BR-08 — Flujo en dos pasos (vista previa → confirmación)
-
-- **Regla:** Primero se valida el formulario y se guarda preview en sesión; solo en confirmación se persiste.
-- **Implementación:** `documentos/views.py` (`GENERADOR_SESSION_PREVIEW`, pasos `datos` / `confirmar` / `cancelar`).
-
-### BR-09 — Asociación al usuario creador
-
-- **Regla:** Todo código generado se asocia al usuario autenticado (`usuario=request.user`).
-- **Implementación:** `documentos/views.py` → `CodigoGenerado.objects.create(...)`.
-
-### BR-10 — Empresa protegida ante borrado
-
-- **Regla:** No se puede eliminar una `Empresa` si tiene códigos asociados (`on_delete=PROTECT`).
-- **Implementación:** `documentos/models.py` → `CodigoGenerado.empresa`.
-
-### BR-11 — Catálogos de negocio en el formulario
-
-- **Regla:** Departamentos, disciplinas técnicas y tipos de documento permitidos están fijados en choices del formulario (no en tablas).
-- **Implementación:** `documentos/forms.py` → `DEPARTAMENTOS`, `DISCIPLINAS`, `TIPOS_DOCUMENTO`.
-- **Alcance detectado:**
-  - Años: 2020 … año actual + 1.
-  - Número de proyecto: `00`–`99`.
-  - Subproyecto: `A`–`Z` o `0`.
-
-### BR-12 — Notificación por correo al generar
-
-- **Regla:** Tras guardar un código, se envía correo a `empresa.correo_notificacion` con asunto `"Nuevo Código generado"`.
-- **Implementación:** `documentos/views.py` (bloque email tras `create`); plantilla `documentos/templates/emails/nuevo_codigo.html`.
-- **Comportamiento ante fallo:** el código **sí queda guardado**; se muestra advertencia al usuario (`email_warning`).
-- **Logo por nombre de empresa:** mapeo hardcodeado de nombres (`SSAPI`, `Paldaca`, `Orinoco Energy`, `Kinetic Scale Projectos`) a archivos de imagen; default `PaldacalogoyRif.png`.
+- **Regla:** Todos los modelos de dominio heredan `cereipo_sso.aislamiento.ModeloDeOrganizacion` con políticas PostgreSQL Row-Level Security (`ActivarRLS` en las migraciones `0001_initial`).
+- **Regla de sigla fija por organización:** ni la UI manual ni la API automática aceptan `empresa` o `sigla` en el payload de generación; siempre se lee `ConfiguracionOrganizacion` de la organización activa (`request.cereipo.organizacion` en manual o `X-Cereipo-Organizacion` en servicio).
 
 ---
 
-## 3. Consulta e historial
+## 2. Catálogos de segmentos
 
-### BR-13 — Listado reciente por defecto
+### BR-03 — Sigla organizacional única y bloqueable
 
-- **Regla:** `/Codigos/` muestra los 15 más recientes salvo `?todos=1`.
-- **Implementación:** `documentos/views.py` → `lista_codigos`.
+- **Regla:** Cada organización configura su `sigla` (`2..10` caracteres alfanuméricos en mayúsculas, `core/validators.py -> validar_sigla_organizacion`).
+- **Bloqueo tras uso:** al asignar el primer código (manual o API), `catalogos.services.organizacion.marcar_sigla_bloqueada()` fija `bloqueada_por_codigos = True` y prohíbe modificar la sigla posteriormente (`409 Conflicto`).
 
-### BR-14 — Búsqueda con filtros opcionales
+### BR-04 — Catálogos configurables en datos y siembra estándar
 
-- **Regla:** Se puede filtrar por código (icontains), usuario, rango de fechas; por defecto se excluyen anulados salvo checkbox `ver_anulados`.
-- **Implementación:** `documentos/views.py` → `buscar_codigo`; `BusquedaCodigoForm`.
-
-### BR-15 — Historial de anulaciones
-
-- **Regla:** `/historial_anulaciones/` lista solo códigos con `anulado=True`, ordenados por fecha de anulación descendente.
-- **Implementación:** `documentos/views.py` → `historial_anulaciones`.
+- **Regla:** Los segmentos `proyecto` (`NN`), `subproyecto` (`S`), `departamento` (`DEPT`), `disciplina` (`DISC`) y `tipo_documento` (`TIPO`) se gestionan en `CatalogoSegmento` por organización.
+- **Equivalencia opcional con Shell (D-39):** cada elemento puede registrar `codigo_shell` para mapear códigos largos del Shell (ej. `CIV` -> `C`) cuando el caller de API envía códigos del Shell o propios.
+- **Siembra estándar:** `catalogos.services.semillas.sembrar_catalogos_estandar` carga los departamentos, disciplinas y tipos de documento estándar heredados de PALDACA (solo si no existen previamente, idempotente).
+- **Publicación como maestro (D-17):** al modificar catálogos (o ejecutar `manage.py sincronizar_maestros`), `catalogos.services.publicacion.sincronizar_maestro_catalogos()` publica el catálogo completo de la organización bajo el maestro `codigos.catalogos` del Shell sin bloquear si el Shell está temporalmente inaccesible.
 
 ---
 
-## 4. Anulación y solicitudes
+## 3. Generación, reserva y unicidad de códigos
 
-### BR-16 — Quién puede anular directamente (backend)
+### BR-05 — Estructura única de 8 segmentos
 
-- **Regla:** Puede anular vía `POST /anular_codigo/<id>/` si:
-  1. es el usuario creador del código, **o**
-  2. `es_aprobador_codigos(user)` es verdadero.
-- **Implementación:** `documentos/views.py` → `anular_codigo`.
+- **Regla:** Toda la suite Cereipo comparte la metodología estándar de 8 segmentos:
 
-### BR-17 — Definición de aprobador
+  `{SIGLA_ORG}-{AA}-{NN}-{S}-{DEPT}-{DISC}-{TIPO}-{CCC}`
 
-- **Regla:** Un usuario es aprobador si:
-  1. `es_administrador_en_modulo("codigos")` (acceso al módulo + rol administrador, o superuser), **o**
-  2. tiene el permiso Django `documentos.puede_anular_codigo`.
-- **Implementación:** `documentos/permissions.py` → `es_aprobador_codigos`.
+  donde `AA` son los últimos 2 dígitos del año (`2015–2100`), y `CCC` tiene al menos 3 dígitos con ceros a la izquierda (`f"{consecutivo:03d}"`, `core/utils.py -> formatear_codigo`).
 
-### BR-18 — Anulación es irreversible en el flujo actual
+### BR-06 — Consecutivo atómico por combinación de segmentos
 
-- **Regla:** Un código ya anulado no puede anularse de nuevo; se marca `anulado=True`, se registra `usuario_anulacion` y `fecha_anulacion`.
-- **Implementación:** `documentos/views.py` → `anular_codigo` / `solicitudes_anulacion_view`; modelo `CodigoGenerado`.
-- **Nota:** No hay endpoint de “des-anular” en el código.
+- **Regla:** Cada combinación `(organizacion_id, anio, numero_proyecto, subproyecto, departamento, disciplina, tipo_documento)` posee su fila en `ContadorSecuencia`.
+- **Implementación:** `registro.services.generador.reservar_o_generar_lote()` ordena las combinaciones de un lote de forma determinística antes de adquirir `select_for_update()` sobre `ContadorSecuencia`, evitando colisiones y deadlocks concurrentes.
 
-### BR-19 — Solicitud de anulación con motivo
+### BR-07 — Flujo en dos pasos para usuario manual (previsualización y confirmación)
 
-- **Regla:** Cualquier usuario con acceso al módulo puede solicitar anulación enviando motivo no vacío.
-- **Implementación:** `documentos/views.py` → `solicitar_anulacion`.
+- **Regla:** El programa manual ofrece `POST /api/registro/previsualizar/` (valida segmentos y muestra el siguiente consecutivo estimado sin consumir secuencia) y `POST /api/registro/generar/` (requiere `motivo` no vacío y persiste en estado `confirmado`, bloqueando la sigla si aún no lo estaba).
 
-### BR-20 — Una sola solicitud pendiente por usuario y código
+### BR-08 — Idempotencia y ciclo reserva -> confirmación (API automática)
 
-- **Regla:** No se permite crear otra `SolicitudAnulacion` si ya existe una del mismo solicitante, mismo código y `procesada=False`.
-- **Implementación:** `documentos/views.py` → `solicitar_anulacion` (y chequeo JS adicional en `lista_codigos.html`).
+- **Regla:** En llamadas de servicio (`reservar`, `generar`) cada ítem puede incluir `clave_idempotencia`. Si la combinación `(organizacion_id, origen, clave_idempotencia)` ya existe con los mismos segmentos, se devuelve el registro previo (`repetido: true`, HTTP `200` si todo el lote es repetido); si intenta reutilizar la misma clave con segmentos distintos, responde `409 Conflict` (`idempotencia-conflicto`).
+- **Reserva en lote vs generación directa:** `reservar` crea códigos en estado `reservado` (ya consumen consecutivo para evitar duplicados); `confirmar` pasa códigos `reservado` a `confirmado` (acepta motivo actualizado); `generar` los crea directamente en estado `confirmado`. Si ya estaban confirmados, `confirmar` responde idempotentemente sin error.
 
-### BR-21 — Procesamiento de solicitudes solo por aprobadores
+### BR-09 — Notificación por correo tolerante a fallos
 
-- **Regla:** La vista `/solicitudes_anulacion/` exige `es_aprobador_codigos`; acciones:
-  - `anular`: marca solicitud procesada + anula el código.
-  - `rechazar`: marca solicitud procesada sin anular.
-- **Implementación:** `documentos/views.py` → `solicitudes_anulacion_view`.
-
-### BR-22 — Anulación directa cierra solicitudes pendientes del código
-
-- **Regla:** Al anular directamente, todas las solicitudes pendientes de ese código pasan a `procesada=True`.
-- **Implementación:** `documentos/views.py` → `anular_codigo`.
+- **Regla:** Cuando `ConfiguracionOrganizacion.notificar_por_correo` está activo y existe `correo_notificacion`, la confirmación manual o automática intenta enviar correo usando `registro/services/correos.py` y `registro/templates/registro/emails/nuevo_codigo.html`.
+- **Tolerancia a fallos:** si el servidor SMTP falla, el código **permanece guardado** y se reporta advertencia en la respuesta sin revertir la transacción.
 
 ---
 
-## 5. Roles globales de Suite (compartidos)
+## 4. Consulta, anulación y auditoría
 
-### BR-23 — Roles de usuario Suite
+### BR-10 — Consulta e historial auditable
 
-- **Regla:** `UsuarioPaldaca.rol` solo admite `usuario` o `administrador` (default `usuario`).
-- **Implementación:** `core/models.py` → `ROL_CHOICES`.
-- **Uso en Códigos:** el rol administrador, junto con acceso al módulo, habilita aprobación (`es_administrador_en_modulo`).
+- **Regla:** `GET /api/registro/codigos/` filtra por texto (`q`), estado (`reservado`, `confirmado`, `anulado`), año, proyecto, subproyecto, departamento, disciplina, tipo, origen (`manual`/`api`) y rango de fechas. Por defecto excluye anulados salvo que se pida incluirlos (`incluir_anulados=1` o `estado=anulado`).
+- **Historial:** Toda creación, confirmación, anulación o cambio de configuración registra auditoría vía `cereipo_sso.historial` y se muestra con `<HistorialRegistro />` en la SPA.
 
-### BR-24 — Superusuario = acceso a todos los módulos activos
+### BR-11 — Anulación directa y solicitudes de anulación
 
-- **Regla:** `is_superuser` implica acceso a cualquier módulo activo sin filas en `core_usuario_modulo`.
-- **Implementación:** `UsuarioPaldaca.tiene_acceso_modulo` / `modulos_habilitados` / `es_superadmin`.
-
----
-
-## 6. Inconsistencias detectadas (no inventar resolución)
-
-### INC-01 — UI de anulación vs regla backend
-
-- **Plantilla** `lista_codigos.html` muestra “Anular código” solo si `perms.documentos.puede_anular_codigo`.
-- **Backend** `anular_codigo` también permite al **creador** del código y a administradores de módulo (`es_aprobador_codigos`).
-- **Consecuencia:** un creador sin el permiso Django verá “Solicitar anulación” en UI, aunque el endpoint de anulación directa lo autorizaría.
-
-### INC-02 — Etiqueta del home vs permiso real
-
-- En `home.html`, el enlace a `solicitudes_anulacion` se etiqueta “Solicitar Anulacion”, pero la vista es la bandeja de **aprobación** (solo aprobadores). La solicitud se hace desde el menú contextual de la lista.
-
-### INC-03 — `ContadorCodigo` vs cálculo real
-
-- Existe modelo/tabla `codigos_contador_codigo` y scripts de migración en `GUIA.md`, pero el generador actual **no** actualiza ni lee ese contador.
+- **Regla:** Un código anulado cambia a `estado = "anulado"`, exige `motivo_anulacion` no vacío, conserva actor/fecha y **nunca libera ni reutiliza su consecutivo**.
+- **Dos vías para usuarios:**
+  - Quien tiene `codigos:codigos:anular` puede anular directamente o aprobar/rechazar solicitudes pendientes en `/anulaciones/`.
+  - Quien solo tiene `codigos:codigos:generar` puede crear una `SolicitudAnulacion` (`POST /api/registro/codigos/<id>/solicitar-anulacion/`), lo cual emite el aviso `codigos.solicitud_anulacion` al Shell.
+- **Vía automática (API):** `POST /api/servicios/generar-codigos/anular/` anula por lote con idempotencia si un código ya estaba anulado. Toda anulación aprobada o ejecutada emite `codigos.codigo_anulado`.
 
 ---
 
-## 7. Reglas NO encontradas en el código
+## 5. Migración histórica desde PALDACA (tarea 5.7)
 
-No hay evidencia en este repositorio de:
+### BR-12 — Preservación de consecutivos históricos por empresa
 
-- Validación de que el código anulado “libere” el consecutivo para reutilización (los anulados siguen contando en el `COUNT` del consecutivo).
-- Workflow de aprobación multi-nivel.
-- API pública de generación de códigos para otros módulos.
-- Reglas de negocio que usen `Role` / `UserRole` / `GoogleDriveToken` de Calidad.
-- Reglas de negocio que usen campos de timesheet en `UsuarioPaldaca`.
+- **Regla:** `manage.py migrar_desde_mysql` mapea cada `codigos_empresa` a una `organizacion_id` de Cereipo (JSON de mapeo), migra sus códigos, motivos y solicitudes en estado `confirmado` o `anulado` con sus consecutivos exactos, marca `bloqueada_por_codigos = True` si tuvo registros e inicializa `ContadorSecuencia.ultimo_consecutivo = MAX(consecutivo)` por combinación, verificando conteos y ausencia de duplicados.

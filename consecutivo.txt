@@ -1,8 +1,0 @@
-6
-.\venv\Scripts\Activate 
-
-Se ha generado un nuevo código:
-
-Usuario: {usuario}
-Fecha: {fecha}
-Código: {codigo}
