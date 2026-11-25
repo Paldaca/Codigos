@@ -2,6 +2,7 @@
 
 Índice técnico y funcional de **Códigos** en la suite **Cereipo** (rama `Cereipo`).
 
+- [Nomenclatura y funcionamiento del motor (`NOMENCLATURA_Y_MOTOR.md`)](NOMENCLATURA_Y_MOTOR.md)
 - [Contexto para asistentes e ingeniería (`AI_CONTEXT.md`)](AI_CONTEXT.md)
 - [Arquitectura (`ARCHITECTURE.md`)](ARCHITECTURE.md)
 - [Reglas de negocio (`BUSINESS_RULES.md`)](BUSINESS_RULES.md)
