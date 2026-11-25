@@ -43,8 +43,7 @@ def manifiesto() -> dict:
             {"id": "generar", "etiqueta": "Generar códigos", "ruta": "/generar/", "icono": "plus-circle", "permiso": f"{CODIGO}:codigos:generar"},
             {"id": "registro", "etiqueta": "Registro", "ruta": "/registro/", "icono": "list", "permiso": f"{CODIGO}:registro:ver"},
             {"id": "anulaciones", "etiqueta": "Anulaciones", "ruta": "/anulaciones/", "icono": "ban", "permiso": f"{CODIGO}:codigos:anular"},
-            {"id": "catalogos", "etiqueta": "Catálogos", "ruta": "/catalogos/", "icono": "sliders", "permiso": f"{CODIGO}:catalogos:administrar"},
-            {"id": "administracion", "etiqueta": "Administración", "ruta": RUTA_PANEL, "icono": "settings", "permiso": GESTIONAR},
+            {"id": "administracion", "etiqueta": "Configuración", "ruta": RUTA_PANEL, "icono": "settings", "permiso": GESTIONAR},
         ],
         "permisos": permisos,
         "roles_sugeridos": [

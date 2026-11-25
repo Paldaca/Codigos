@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { Building2, Check, FolderKanban, HelpCircle, Layers, Lock, ShieldAlert, Sparkles } from 'lucide-react'
-import { Boton, Dialogo, Etiqueta } from '../ui/componentes'
+import { useEffect, useState } from 'react'
+import { Building2, Check, FolderKanban, HelpCircle, Layers, Lock, ShieldAlert, Sparkles, X } from 'lucide-react'
+import { Boton, Etiqueta } from '../ui/componentes'
 import { SEGMENTOS_GUIA } from './motorCodigosInfo'
 
 type AyudaMotorModalProps = {
@@ -13,6 +13,17 @@ export function AyudaMotorModal({ abierto, alCerrar, siglaOrg = 'CER' }: AyudaMo
   const [modoEjemplo, setModoEjemplo] = useState<'proyecto' | 'general'>('general')
   const [segmentoActivo, setSegmentoActivo] = useState<string>('proyecto')
 
+  useEffect(() => {
+    if (!abierto) return
+    const alTecla = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') alCerrar()
+    }
+    window.addEventListener('keydown', alTecla)
+    return () => window.removeEventListener('keydown', alTecla)
+  }, [abierto, alCerrar])
+
+  if (!abierto) return null
+
   const seg = SEGMENTOS_GUIA.find((s) => s.clave === segmentoActivo) ?? SEGMENTOS_GUIA[2]
 
   const valorDe = (clave: string, fallback: string) => {
@@ -21,20 +32,36 @@ export function AyudaMotorModal({ abierto, alCerrar, siglaOrg = 'CER' }: AyudaMo
   }
 
   return (
-    <Dialogo
-      abierto={abierto}
-      alCerrar={alCerrar}
-      tamano="xl"
-      titulo="¿Cómo funciona el motor de códigos de Cereipo?"
-      descripcion="Explora de forma interactiva la metodología única de 8 segmentos, los contadores atómicos y cuándo usar 00."
-      acciones={
-        <Boton variante="primary" onClick={alCerrar}>
-          <Check aria-hidden="true" />
-          Entendido
-        </Boton>
-      }
-    >
-      <div className="guia-motor">
+    <>
+      <div className="drawer-backdrop" onClick={alCerrar} aria-hidden="true" />
+      <aside
+        className="drawer-panel is-amplio"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="guia-motor-titulo"
+      >
+        <div className="drawer-head">
+          <div>
+            <span className="kicker">Guía del motor</span>
+            <h2 id="guia-motor-titulo" style={{ fontSize: 18, fontWeight: 700, marginTop: 2 }}>
+              ¿Cómo funciona el motor de códigos?
+            </h2>
+            <p style={{ fontSize: 13.5, color: 'var(--ink-500)', marginTop: 4 }}>
+              Explora la estructura de 8 segmentos, los contadores atómicos y cuándo usar 00.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn-icono"
+            onClick={alCerrar}
+            aria-label="Cerrar guía del motor"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="drawer-body">
+          <div className="guia-motor">
         {/* Comparador interactivo: Proyecto específico vs Código General (00) */}
         <div className="guia-comparador">
           <div className="guia-comparador-top">
@@ -166,7 +193,16 @@ export function AyudaMotorModal({ abierto, alCerrar, siglaOrg = 'CER' }: AyudaMo
             </p>
           </div>
         </div>
-      </div>
-    </Dialogo>
+        </div>
+        </div>
+
+        <div className="drawer-foot">
+          <Boton variante="primary" onClick={alCerrar}>
+            <Check aria-hidden="true" />
+            Entendido
+          </Boton>
+        </div>
+      </aside>
+    </>
   )
 }

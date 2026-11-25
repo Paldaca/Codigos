@@ -8,6 +8,7 @@ import { IdentidadProvider, useIdentidad } from './context/IdentidadContext'
 import { AnulacionesPage } from './pages/anulaciones/AnulacionesPage'
 import { ConfiguracionPage } from './pages/configuracion/ConfiguracionPage'
 import { GeneradorPage } from './pages/generador/GeneradorPage'
+import { InicioPage } from './pages/inicio/InicioPage'
 import { RegistroPage } from './pages/registro/RegistroPage'
 import { resolverRuta } from './rutas'
 import { configurarManejadorAuth } from './services/http'
@@ -110,8 +111,15 @@ function ContenidoApp() {
       <main className="shell-interno">
         {!embebida && <BarraModulo vista={vista} ir={ir} alAbrirAyuda={abrirAyuda} />}
 
-        <div key={vista === 'inicio' ? 'registro' : vista} className="vista-transicion">
-          {(vista === 'inicio' || vista === 'registro') &&
+        <div key={vista} className="vista-transicion">
+          {vista === 'inicio' &&
+            (puede('codigos:inicio:ver') || puede('codigos:registro:ver') ? (
+              <InicioPage ir={ir} embebida={embebida} alAbrirAyuda={abrirAyuda} />
+            ) : (
+              <Aviso tono="warn">Sin permiso para ver el inicio de Códigos.</Aviso>
+            ))}
+
+          {vista === 'registro' &&
             (puede('codigos:registro:ver') || puede('codigos:inicio:ver') ? (
               <RegistroPage ir={ir} embebida={embebida} alAbrirAyuda={abrirAyuda} />
             ) : (
@@ -134,7 +142,7 @@ function ContenidoApp() {
 
           {(vista === 'catalogos' || vista === 'administracion') && (
             <ConfiguracionPage
-              tabInicial={vista === 'administracion' ? 'acceso' : 'catalogos'}
+              tabInicial={puede('codigos:catalogos:administrar') ? 'catalogos' : 'acceso'}
               alAbrirAyuda={abrirAyuda}
             />
           )}

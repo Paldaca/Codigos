@@ -241,6 +241,11 @@ export function ConfiguracionPage({
     setEnviando(true)
     try {
       await catalogosApi.actualizarSegmento(seg.id, { activo: !seg.activo })
+      notificar(
+        seg.activo ? 'Elemento desactivado' : 'Elemento reactivado',
+        `${seg.codigo} · ${seg.nombre}`,
+        'ok',
+      )
       cargarCatalogos()
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -581,6 +586,7 @@ export function ConfiguracionPage({
                             className={`tag-toggle ${s.activo ? 'is-on' : 'is-off'}`}
                             disabled={enviando}
                             onClick={() => alternarActivo(s)}
+                            title={s.activo ? 'Clic para desactivar' : 'Clic para volver a activar'}
                           >
                             <span className="tag-punto" aria-hidden="true" />
                             {s.activo ? 'Activo' : 'Inactivo'}
@@ -599,19 +605,32 @@ export function ConfiguracionPage({
                                 </Boton>
                               </>
                             ) : (
-                              <Boton
-                                variante="ghost"
-                                tamano="sm"
-                                onClick={() => {
-                                  setEditandoId(s.id)
-                                  setEditNombre(s.nombre)
-                                  setEditShell(s.codigo_shell)
-                                  setEditOrden(s.orden)
-                                }}
-                              >
-                                <Edit3 size={14} aria-hidden="true" />
-                                Editar
-                              </Boton>
+                              <>
+                                {!s.activo && (
+                                  <Boton
+                                    variante="secondary"
+                                    tamano="sm"
+                                    disabled={enviando}
+                                    onClick={() => alternarActivo(s)}
+                                  >
+                                    <RotateCcw size={14} aria-hidden="true" />
+                                    Reactivar
+                                  </Boton>
+                                )}
+                                <Boton
+                                  variante="ghost"
+                                  tamano="sm"
+                                  onClick={() => {
+                                    setEditandoId(s.id)
+                                    setEditNombre(s.nombre)
+                                    setEditShell(s.codigo_shell)
+                                    setEditOrden(s.orden)
+                                  }}
+                                >
+                                  <Edit3 size={14} aria-hidden="true" />
+                                  Editar
+                                </Boton>
+                              </>
                             )}
                           </div>
                         </td>

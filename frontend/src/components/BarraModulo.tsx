@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Ban, HelpCircle, ListChecks, PlusCircle, Settings } from 'lucide-react'
+import { Ban, HelpCircle, Home, ListChecks, PlusCircle, Settings } from 'lucide-react'
 import { useIdentidad } from '../context/IdentidadContext'
 import type { RutaApp } from '../rutas'
 import { registroApi } from '../services/registro'
@@ -31,7 +31,6 @@ export function BarraModulo({ vista, ir, alAbrirAyuda }: BarraModuloProps) {
 
   if (identidad.tipo !== 'listo') return null
 
-  const esRegistro = vista === 'inicio' || vista === 'registro'
   const esConfig = vista === 'catalogos' || vista === 'administracion'
   const puedeConfig =
     puede('codigos:catalogos:administrar') ||
@@ -40,12 +39,12 @@ export function BarraModulo({ vista, ir, alAbrirAyuda }: BarraModuloProps) {
 
   const items = [
     {
-      id: 'registro',
+      id: 'inicio',
       ruta: '/',
-      etiqueta: 'Registro',
-      icono: ListChecks,
-      activo: esRegistro,
-      visible: puede('codigos:registro:ver') || puede('codigos:inicio:ver'),
+      etiqueta: 'Inicio',
+      icono: Home,
+      activo: vista === 'inicio',
+      visible: puede('codigos:inicio:ver') || puede('codigos:registro:ver'),
       badge: 0,
     },
     {
@@ -55,6 +54,15 @@ export function BarraModulo({ vista, ir, alAbrirAyuda }: BarraModuloProps) {
       icono: PlusCircle,
       activo: vista === 'generar',
       visible: puede('codigos:codigos:generar'),
+      badge: 0,
+    },
+    {
+      id: 'registro',
+      ruta: '/registro/',
+      etiqueta: 'Registro',
+      icono: ListChecks,
+      activo: vista === 'registro',
+      visible: puede('codigos:registro:ver'),
       badge: 0,
     },
     {
